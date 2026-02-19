@@ -19,6 +19,11 @@ from realtorai.integrations.matterport.downloader import (
     get_client_matterport_dir,
     get_tour_info,
 )
+from realtorai.integrations.matterport.email_handler import (
+    process_matterport_email,
+    download_and_extract_zip,
+    extract_download_url,
+)
 
 __all__ = [
     # Auth
@@ -36,4 +41,8 @@ __all__ = [
     "download_tour_assets",
     "get_client_matterport_dir",
     "get_tour_info",
+    # Email handler
+    "process_matterport_email",
+    "download_and_extract_zip",
+    "extract_download_url",
 ]
