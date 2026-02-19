@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <header class="page-header">
+        <h1>Good morning</h1>
+        <p class="subtitle">Here's what needs your attention</p>
+    </header>
+
+    <div class="dashboard-grid">
+        <!-- Action Queue Panel -->
+        <section class="panel queue-panel">
+            <div class="panel-header">
+                <h2>Action Queue</h2>
+                <span class="badge">{{ pending_count }}</span>
+            </div>
+            <div class="panel-content"
+                 id="queue-items"
+                 hx-get="/queue/items"
+                 hx-trigger="load, every 30s"
+                 hx-swap="innerHTML">
+                {% if pending_tasks %}
+                    {% for task in pending_tasks[:5] %}
+                    <div class="task-card" data-task-id="{{ task.id }}">
+                        <div class="task-header">
+                            <span class="task-type {{ task.task_type.value }}">
+                                {{ task.task_type.value | replace('_', ' ') | title }}
+                            </span>
+                            <span class="task-confidence {{ task.confidence or 'medium' }}">
+                                {{ task.confidence or 'medium' }}
+                            </span>
+                        </div>
+                        <h3 class="task-title">{{ task.title }}</h3>
+                        <p class="task-summary">{{ task.summary }}</p>
+                        <div class="task-actions">
+                            <button class="btn btn-approve"
+                                    hx-post="/actions/{{ task.id }}/approve"
+                                    hx-swap="outerHTML"
+                                    hx-target="closest .task-card">
+                                Approve
+                            </button>
+                            <button class="btn btn-edit"
+                                    hx-get="/actions/{{ task.id }}/edit-form"
+                                    hx-swap="outerHTML"
+                                    hx-target="closest .task-card">
+                                Edit
+                            </button>
+                            <button class="btn btn-reject"
+                                    hx-post="/actions/{{ task.id }}/reject"
+                                    hx-swap="outerHTML"
+                                    hx-target="closest .task-card">
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if pending_count > 5 %}
+                    <a href="/queue" class="view-all">View all {{ pending_count }} items →</a>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <p>No pending tasks</p>
+                        <p class="subtle">New items will appear here as they're processed</p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Waiting On Panel -->
+        <section class="panel waiting-panel">
+            <div class="panel-header">
+                <h2>Waiting On</h2>
+                <span class="badge">{{ waiting_on | length }}</span>
+            </div>
+            <div class="panel-content">
+                {% if waiting_on %}
+                <table class="waiting-table">
+                    <thead>
+                        <tr>
+                            <th>Deal</th>
+                            <th>Item</th>
+                            <th>From</th>
+                            <th>Due</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in waiting_on[:8] %}
+                        <tr class="waiting-row {% if item.waiting_on == 'agent' %}needs-approval{% endif %}"
+                            data-item-id="{{ item.id }}">
+                            <td class="deal-cell">
+                                {{ item.property_address or item.client_name }}
+                            </td>
+                            <td class="item-cell">{{ item.description }}</td>
+                            <td class="from-cell">
+                                <span class="from-badge {{ item.waiting_on }}">
+                                    {{ item.waiting_on | title }}
+                                </span>
+                            </td>
+                            <td class="due-cell">
+                                {% if item.due_date %}
+                                {{ item.due_date[:10] }}
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <p>All clear</p>
+                    <p class="subtle">Nothing pending from other parties</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Clients Panel -->
+        <section class="panel clients-panel">
+            <div class="panel-header">
+                <h2>Current Clients</h2>
+                <span class="badge">{{ clients | length }}</span>
+            </div>
+            <div class="panel-content">
+                {% if clients %}
+                <div class="client-list">
+                    {% for client in clients[:6] %}
+                    <a href="/clients/{{ client.id }}" class="client-card" data-client-id="{{ client.id }}">
+                        <div class="client-header">
+                            <span class="client-name">{{ client.name }}</span>
+                            <span class="client-status {{ client.status }}">
+                                {{ client.status | replace('_', ' ') | title }}
+                            </span>
+                        </div>
+                        <div class="client-details">
+                            {% if client.property_address %}
+                            <span class="property">{{ client.property_address }}</span>
+                            {% endif %}
+                            {% if client.transaction_type %}
+                            <span class="type">{{ client.transaction_type | title }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                <a href="/clients" class="view-all">View all clients →</a>
+                {% else %}
+                <div class="empty-state">
+                    <p>No clients yet</p>
+                    <p class="subtle">Say "new client [name]" in chat to add one</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Status Panel -->
+        <section class="panel status-panel">
+            <div class="panel-header">
+                <h2>System Status</h2>
+            </div>
+            <div class="panel-content">
+                <div class="status-item">
+                    <span class="status-label">Outlook</span>
+                    {% if graph_connected %}
+                    <span class="status-value connected">Connected</span>
+                    {% else %}
+                    <span class="status-value disconnected">
+                        Not connected
+                        <a href="/setup" class="setup-link">Set up →</a>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="status-item">
+                    <span class="status-label">DocuSign</span>
+                    {% if docusign_connected %}
+                    <span class="status-value connected">Connected</span>
+                    {% else %}
+                    <span class="status-value disconnected">
+                        Not connected
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Model</span>
+                    <span class="status-value">{{ model_name }}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Daemon</span>
+                    {% if daemon_running %}
+                    <span class="status-value connected">Running</span>
+                    {% else %}
+                    <span class="status-value warning">Not running</span>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Chat Panel -->
+        <section class="panel chat-panel">
+            <div class="panel-header">
+                <h2>Quick Chat</h2>
+            </div>
+            <div class="panel-content">
+                <form id="quick-chat-form" class="chat-form">
+                    <input type="text"
+                           name="message"
+                           id="quick-chat-input"
+                           placeholder="Ask me anything or give me a task..."
+                           class="chat-input"
+                           autocomplete="off">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
+                <div id="chat-response" class="chat-response"></div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+// Track currently selected item for keyboard confirmation
+let selectedItemId = null;
+let selectedItemType = null;  // 'task' or 'pending'
+
+// Quick chat form
+document.getElementById('quick-chat-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const input = document.getElementById('quick-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const responseDiv = document.getElementById('chat-response');
+    responseDiv.innerHTML = '<p class="streaming"></p>';
+    input.value = '';
+
+    const formData = new FormData();
+    formData.append('message', message);
+
+    try {
+        const response = await fetch('/chat/stream', {
+            method: 'POST',
+            body: formData
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const streamingP = responseDiv.querySelector('.streaming');
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            const text = decoder.decode(value);
+            const lines = text.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[DONE]') {
+                        break;
+                    }
+                    streamingP.innerHTML += data;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Stream error:', error);
+        responseDiv.innerHTML = '<p class="error">Error: ' + error.message + '</p>';
+    }
+});
+
+// Click handlers for selectable items
+document.querySelectorAll('.task-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedItemId = this.dataset.taskId;
+        selectedItemType = 'task';
+    });
+});
+
+document.querySelectorAll('.waiting-row.needs-approval').forEach(row => {
+    row.addEventListener('click', function() {
+        document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedItemId = this.dataset.itemId;
+        selectedItemType = 'pending';
+    });
+});
+
+// Keyboard shortcuts: Option+? to confirm, Option+X to reject
+document.addEventListener('keydown', async function(e) {
+    // Option+/ (which is Option+? without shift)
+    if (e.altKey && e.key === '/') {
+        e.preventDefault();
+        await confirmSelected();
+    }
+    // Option+X
+    if (e.altKey && (e.key === 'x' || e.key === 'X')) {
+        e.preventDefault();
+        await rejectSelected();
+    }
+});
+
+async function confirmSelected() {
+    if (!selectedItemId) {
+        showToast('Select an item first');
+        return;
+    }
+
+    try {
+        let url;
+        if (selectedItemType === 'task') {
+            url = `/actions/${selectedItemId}/approve`;
+        } else {
+            url = `/pending/${selectedItemId}/resolve`;
+        }
+
+        const response = await fetch(url, { method: 'POST' });
+        if (response.ok) {
+            // Remove the item from view
+            const el = document.querySelector(`[data-${selectedItemType === 'task' ? 'task' : 'item'}-id="${selectedItemId}"]`);
+            if (el) {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200);
+            }
+            showToast('Confirmed');
+            selectedItemId = null;
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+async function rejectSelected() {
+    if (!selectedItemId) {
+        showToast('Select an item first');
+        return;
+    }
+
+    try {
+        let url;
+        if (selectedItemType === 'task') {
+            url = `/actions/${selectedItemId}/reject`;
+        } else {
+            url = `/pending/${selectedItemId}/reject`;
+        }
+
+        const response = await fetch(url, { method: 'POST' });
+        if (response.ok) {
+            const el = document.querySelector(`[data-${selectedItemType === 'task' ? 'task' : 'item'}-id="${selectedItemId}"]`);
+            if (el) {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200);
+            }
+            showToast('Rejected');
+            selectedItemId = null;
+        }
+    } catch (error) {
+        showToast('Error: ' + error.message);
+    }
+}
+
+function showToast(message) {
+    // Simple toast notification
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// Auto-select first actionable item
+const firstTask = document.querySelector('.task-card');
+const firstPending = document.querySelector('.waiting-row.needs-approval');
+if (firstTask) {
+    firstTask.classList.add('selected');
+    selectedItemId = firstTask.dataset.taskId;
+    selectedItemType = 'task';
+} else if (firstPending) {
+    firstPending.classList.add('selected');
+    selectedItemId = firstPending.dataset.itemId;
+    selectedItemType = 'pending';
+}
+</script>
+
+<div class="shortcut-hint">
+    <span><kbd>⌥</kbd><kbd>/</kbd> Confirm</span>
+    <span><kbd>⌥</kbd><kbd>X</kbd> Reject</span>
+</div>
+{% endblock %}

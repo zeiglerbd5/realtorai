@@ -1,0 +1,30 @@
+# RealtorAI Default Configuration
+# These values are used as fallbacks when not specified in .env
+
+# Model settings
+model:
+  path: models/llama-3.2-8b-q4
+  max_tokens: 2048
+  temperature: 0.7
+
+# Email triage settings
+email:
+  poll_interval_seconds: 120
+  max_thread_depth: 10  # How many messages in thread to include as context
+
+# Approval queue settings
+queue:
+  max_pending_items: 100
+  stale_after_hours: 24  # Mark items as stale after this time
+
+# UI settings
+ui:
+  items_per_page: 20
+  refresh_interval_seconds: 30
+
+# Agent behavior
+agent:
+  # Confidence threshold for auto-suggesting actions
+  confidence_threshold: 0.7
+  # Include reasoning chain in UI
+  show_reasoning: true

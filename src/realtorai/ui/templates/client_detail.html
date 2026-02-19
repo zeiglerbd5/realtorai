@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.name }} — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="client-detail">
+    <header class="page-header">
+        <div class="header-nav">
+            <a href="/" class="back-link">← Dashboard</a>
+        </div>
+        <div class="header-actions">
+            <button id="edit-btn" class="btn btn-secondary">Edit</button>
+            <button id="save-btn" class="btn btn-primary" style="display: none;">Save</button>
+            <button id="cancel-btn" class="btn btn-secondary" style="display: none;">Cancel</button>
+        </div>
+    </header>
+
+    <div class="client-content">
+        <!-- Rendered markdown view -->
+        <div id="profile-view" class="profile-view">
+            {{ content_html | safe }}
+        </div>
+
+        <!-- Edit mode textarea -->
+        <div id="profile-edit" class="profile-edit" style="display: none;">
+            <textarea id="markdown-editor">{{ content_raw }}</textarea>
+        </div>
+
+        <!-- Matterport Tour Section -->
+        {% if matterport %}
+        <div class="matterport-section">
+            <h2>3D Virtual Tour</h2>
+            <div class="tour-embed">
+                <iframe
+                    src="{{ matterport.embed_url }}"
+                    width="100%"
+                    height="400"
+                    frameborder="0"
+                    allowfullscreen>
+                </iframe>
+            </div>
+            <p class="tour-meta">
+                <strong>{{ matterport.name }}</strong> —
+                {{ matterport.snapshot_count }} images captured
+            </p>
+
+            {% if matterport_images %}
+            <div class="tour-gallery">
+                <h3>Still Images</h3>
+                <div class="gallery-grid">
+                    {% for img in matterport_images[:12] %}
+                    <img src="{{ img }}" alt="Tour image" loading="lazy" onclick="openLightbox('{{ img }}')">
+                    {% endfor %}
+                </div>
+                {% if matterport_images|length > 12 %}
+                <p class="gallery-more">+ {{ matterport_images|length - 12 }} more images</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pending items sidebar -->
+    <aside class="client-sidebar">
+        <h3>Pending Items</h3>
+        {% if pending_items %}
+        <ul class="pending-list">
+            {% for item in pending_items %}
+            <li class="pending-item {{ item.status }}">
+                <span class="item-desc">{{ item.description }}</span>
+                <span class="item-from">{{ item.waiting_on }}</span>
+                {% if item.waiting_on == 'agent' %}
+                <div class="item-actions">
+                    <button class="btn-sm btn-approve"
+                            hx-post="/pending/{{ item.id }}/approve"
+                            hx-swap="outerHTML"
+                            hx-target="closest li">
+                        ✓
+                    </button>
+                    <button class="btn-sm btn-reject"
+                            hx-post="/pending/{{ item.id }}/reject"
+                            hx-swap="outerHTML"
+                            hx-target="closest li">
+                        ✗
+                    </button>
+                </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-state">No pending items</p>
+        {% endif %}
+
+        <h3>Quick Actions</h3>
+        <div class="quick-actions">
+            <button class="btn btn-secondary" onclick="addNote()">Add Note</button>
+            {% if not client.room_id %}
+            <button class="btn btn-secondary"
+                    hx-post="/clients/{{ client.id }}/create-room"
+                    hx-swap="none">
+                Create DocuSign Room
+            </button>
+            {% else %}
+            <a href="https://demo.rooms.docusign.com" target="_blank" class="btn btn-secondary">
+                Open Room #{{ client.room_id }}
+            </a>
+            {% endif %}
+            <button class="btn btn-secondary" onclick="downloadMatterportTour()">
+                {% if matterport %}Update{% else %}Pull{% endif %} Matterport Tour
+            </button>
+        </div>
+
+        <h3>File Location</h3>
+        <p class="file-path">{{ client.file_path }}</p>
+    </aside>
+</div>
+
+<style>
+.client-detail {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: var(--spacing-xl);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    grid-column: span 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.back-link {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.client-content {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    min-height: 60vh;
+}
+
+.profile-view {
+    line-height: 1.7;
+}
+
+.profile-view h1 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.profile-view h2 {
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--spacing-sm);
+}
+
+.profile-view h3 {
+    margin-top: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.profile-view p {
+    margin-bottom: var(--spacing-sm);
+}
+
+.profile-view ul {
+    list-style: none;
+    padding-left: var(--spacing-md);
+}
+
+.profile-view li {
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-view strong {
+    color: var(--text-primary);
+}
+
+.profile-edit textarea {
+    width: 100%;
+    min-height: 60vh;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.client-sidebar {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    height: fit-content;
+    position: sticky;
+    top: var(--spacing-lg);
+}
+
+.client-sidebar h3 {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.client-sidebar h3:first-child {
+    margin-top: 0;
+}
+
+.pending-list {
+    list-style: none;
+}
+
+.pending-item {
+    padding: var(--spacing-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.8125rem;
+}
+
+.item-desc {
+    display: block;
+    color: var(--text-primary);
+}
+
+.item-from {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.item-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-sm.btn-approve {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent-green);
+}
+
+.btn-sm.btn-reject {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.quick-actions .btn {
+    width: 100%;
+    text-align: center;
+}
+
+.file-path {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    word-break: break-all;
+    background: var(--bg-tertiary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.empty-state {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
+
+/* Matterport Section */
+.matterport-section {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+}
+
+.matterport-section h2 {
+    margin-bottom: var(--spacing-md);
+}
+
+.tour-embed {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.tour-embed iframe {
+    display: block;
+}
+
+.tour-meta {
+    margin-top: var(--spacing-sm);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.tour-gallery {
+    margin-top: var(--spacing-lg);
+}
+
+.tour-gallery h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-sm);
+}
+
+.gallery-grid img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.gallery-grid img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.gallery-more {
+    margin-top: var(--spacing-sm);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
+
+/* Lightbox */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: pointer;
+}
+
+.lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: var(--radius-md);
+}
+</style>
+
+<script>
+const editBtn = document.getElementById('edit-btn');
+const saveBtn = document.getElementById('save-btn');
+const cancelBtn = document.getElementById('cancel-btn');
+const profileView = document.getElementById('profile-view');
+const profileEdit = document.getElementById('profile-edit');
+const editor = document.getElementById('markdown-editor');
+
+let originalContent = editor.value;
+
+editBtn.addEventListener('click', () => {
+    profileView.style.display = 'none';
+    profileEdit.style.display = 'block';
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+    cancelBtn.style.display = 'inline-block';
+    editor.focus();
+});
+
+cancelBtn.addEventListener('click', () => {
+    editor.value = originalContent;
+    exitEditMode();
+});
+
+saveBtn.addEventListener('click', async () => {
+    const content = editor.value;
+
+    try {
+        const response = await fetch('/clients/{{ client.id }}/file', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            profileView.innerHTML = data.html;
+            originalContent = content;
+            exitEditMode();
+        } else {
+            alert('Failed to save');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+
+function exitEditMode() {
+    profileView.style.display = 'block';
+    profileEdit.style.display = 'none';
+    editBtn.style.display = 'inline-block';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+}
+
+function addNote() {
+    const note = prompt('Enter note:');
+    if (note) {
+        fetch('/clients/{{ client.id }}/notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: note, source: 'agent' })
+        }).then(() => {
+            location.reload();
+        });
+    }
+}
+
+function openLightbox(src) {
+    const lightbox = document.createElement('div');
+    lightbox.className = 'lightbox';
+    lightbox.innerHTML = `<img src="${src}" alt="Full size">`;
+    lightbox.onclick = () => lightbox.remove();
+    document.body.appendChild(lightbox);
+}
+
+function downloadMatterportTour() {
+    const modelId = prompt('Enter Matterport Model ID (from tour URL):');
+    if (!modelId) return;
+
+    fetch('/clients/{{ client.id }}/matterport/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id: modelId, max_images: 9999 })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(`Downloaded ${data.images_downloaded} images`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.detail || data.error));
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+</script>
+{% endblock %}

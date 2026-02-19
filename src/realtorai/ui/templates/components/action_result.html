@@ -1,0 +1,41 @@
+{% if status == 'approved' %}
+<div class="action-result approved">
+    <div class="result-icon">✓</div>
+    <div class="result-content">
+        <h4>Approved</h4>
+        <p>{{ message or 'Task has been executed successfully.' }}</p>
+    </div>
+</div>
+{% elif status == 'rejected' %}
+<div class="action-result rejected">
+    <div class="result-icon">✕</div>
+    <div class="result-content">
+        <h4>Rejected</h4>
+        <p>{{ message or 'Task has been rejected and archived.' }}</p>
+    </div>
+</div>
+{% elif status == 'error' %}
+<div class="action-result error">
+    <div class="result-icon">!</div>
+    <div class="result-content">
+        <h4>Error</h4>
+        <p>{{ message or 'An error occurred while processing the task.' }}</p>
+        {% if retry %}
+        <button class="btn btn-secondary"
+                hx-post="/actions/{{ task_id }}/retry"
+                hx-swap="outerHTML"
+                hx-target="closest .action-result">
+            Retry
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="action-result pending">
+    <div class="result-icon">⏳</div>
+    <div class="result-content">
+        <h4>Processing</h4>
+        <p>{{ message or 'Task is being processed...' }}</p>
+    </div>
+</div>
+{% endif %}

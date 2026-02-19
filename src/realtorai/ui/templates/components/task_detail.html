@@ -1,0 +1,74 @@
+<div class="task-card" data-task-id="{{ task.id }}">
+    <div class="task-header">
+        <span class="task-type {{ task.task_type.value }}">
+            {{ task.task_type.value | replace('_', ' ') | title }}
+        </span>
+        <span class="task-confidence {{ task.confidence or 'medium' }}">
+            {{ task.confidence or 'medium' }}
+        </span>
+        <span class="task-time">
+            {{ task.created_at.strftime('%I:%M %p') if task.created_at else '' }}
+        </span>
+    </div>
+
+    <h3 class="task-title">{{ task.title }}</h3>
+    <p class="task-summary">{{ task.summary }}</p>
+
+    {% if task.reasoning_summary %}
+    <div class="task-reasoning">
+        <details>
+            <summary>Reasoning</summary>
+            <p>{{ task.reasoning_summary }}</p>
+        </details>
+    </div>
+    {% endif %}
+
+    {% if task.proposal_data.get('draft_response') %}
+    <div class="task-draft">
+        <details open>
+            <summary>Draft Response</summary>
+            <div class="draft-content">
+                <p><strong>Subject:</strong> {{ task.proposal_data.draft_response.subject }}</p>
+                <div class="draft-body">{{ task.proposal_data.draft_response.body }}</div>
+            </div>
+        </details>
+    </div>
+    {% endif %}
+
+    {% if task.proposal_data.get('classification') %}
+    <div class="task-classification">
+        <details>
+            <summary>Email Classification</summary>
+            <div class="classification-content">
+                <p><strong>Priority:</strong> {{ task.proposal_data.classification.priority }}</p>
+                <p><strong>Intent:</strong> {{ task.proposal_data.classification.intent }}</p>
+                {% if task.proposal_data.classification.key_entities %}
+                <p><strong>Entities:</strong> {{ task.proposal_data.classification.key_entities | join(', ') }}</p>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+    {% endif %}
+
+    <div class="task-actions">
+        <button class="btn btn-approve"
+                hx-post="/actions/{{ task.id }}/approve"
+                hx-swap="outerHTML"
+                hx-target="closest .task-card">
+            Approve
+        </button>
+        <button class="btn btn-edit"
+                hx-get="/actions/{{ task.id }}/edit-form"
+                hx-swap="innerHTML"
+                hx-target="closest .task-card">
+            Edit
+        </button>
+        <button class="btn btn-reject"
+                hx-post="/actions/{{ task.id }}/reject"
+                hx-swap="outerHTML"
+                hx-target="closest .task-card"
+                hx-confirm="Reject this task?">
+            Reject
+        </button>
+    </div>
+</div>

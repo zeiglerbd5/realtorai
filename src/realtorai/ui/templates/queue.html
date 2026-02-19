@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Queue — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="queue-page">
+    <header class="page-header">
+        <h1>Approval Queue</h1>
+        <p class="subtitle">{{ count }} items pending your review</p>
+    </header>
+
+    <div class="queue-list"
+         id="queue-list"
+         hx-get="/queue/items"
+         hx-trigger="every 30s"
+         hx-swap="innerHTML">
+        {% include "components/queue_items.html" %}
+    </div>
+</div>
+{% endblock %}

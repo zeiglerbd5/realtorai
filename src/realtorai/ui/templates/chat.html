@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Chat — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+    <header class="page-header">
+        <h1>Chat with RealtorAI</h1>
+        <p class="subtitle">Ask questions or give tasks</p>
+        <button id="clear-chat" class="btn btn-secondary" style="margin-top: 0.5rem;">Clear Conversation</button>
+    </header>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+            <div class="message assistant">
+                <div class="message-content">
+                    <p>Hello! I'm RealtorAI, your AI assistant. I can help you with:</p>
+                    <ul>
+                        <li>Drafting emails and responses</li>
+                        <li>Scheduling appointments</li>
+                        <li>Answering questions about Maine real estate law</li>
+                        <li>Managing your tasks and follow-ups</li>
+                    </ul>
+                    <p>What would you like to do?</p>
+                </div>
+            </div>
+        </div>
+
+        <form class="chat-input-form" id="chat-form">
+            <input type="text"
+                   name="message"
+                   id="chat-input"
+                   placeholder="Type your message..."
+                   class="chat-input"
+                   autocomplete="off"
+                   required>
+            <button type="submit" class="btn btn-primary">
+                <span>Send</span>
+            </button>
+        </form>
+        <div id="chat-loading" class="htmx-indicator" style="display: none;">Thinking...</div>
+    </div>
+</div>
+
+<script>
+document.getElementById('chat-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const messagesDiv = document.getElementById('chat-messages');
+    const loading = document.getElementById('chat-loading');
+
+    // Add user message
+    messagesDiv.innerHTML += `
+        <div class="message user">
+            <div class="message-content"><p>${message}</p></div>
+        </div>
+    `;
+
+    // Add assistant message placeholder
+    const assistantId = 'assistant-' + Date.now();
+    messagesDiv.innerHTML += `
+        <div class="message assistant" id="${assistantId}">
+            <div class="message-content"><p></p></div>
+        </div>
+    `;
+
+    input.value = '';
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    loading.style.display = 'block';
+
+    // Stream response
+    const formData = new FormData();
+    formData.append('message', message);
+
+    try {
+        const response = await fetch('/chat/stream', {
+            method: 'POST',
+            body: formData
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const assistantP = document.querySelector(`#${assistantId} .message-content p`);
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            const text = decoder.decode(value);
+            const lines = text.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[DONE]') {
+                        // Convert URLs to clickable links when done
+                        assistantP.innerHTML = assistantP.innerHTML.replace(
+                            /(https?:\/\/[^\s<]+)/g,
+                            '<a href="$1" target="_blank" style="color: #3b82f6;">$1</a>'
+                        );
+                        break;
+                    }
+                    assistantP.innerHTML += data;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Stream error:', error);
+        const assistantP = document.querySelector(`#${assistantId} .message-content p`);
+        assistantP.textContent = 'Error: ' + error.message;
+    }
+
+    loading.style.display = 'none';
+});
+
+// Clear conversation
+document.getElementById('clear-chat').addEventListener('click', async function() {
+    await fetch('/chat/clear', { method: 'POST' });
+    const messagesDiv = document.getElementById('chat-messages');
+    messagesDiv.innerHTML = `
+        <div class="message assistant">
+            <div class="message-content">
+                <p>Conversation cleared. How can I help you?</p>
+            </div>
+        </div>
+    `;
+});
+</script>
+{% endblock %}
