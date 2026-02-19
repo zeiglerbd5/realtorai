@@ -462,6 +462,32 @@ LIST_MATTERPORT_MODELS_TOOL = {
     },
 }
 
+DOWNLOAD_MATTERPORT_ZIP_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "download_matterport_zip",
+        "description": "Download Matterport assets from a zip link (typically from a Matterport email notification) and extract to a client's folder. Use this when you receive an email from Matterport with a download link.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID to route the files to",
+                },
+                "download_url": {
+                    "type": "string",
+                    "description": "The Matterport download URL from the email",
+                },
+                "email_body": {
+                    "type": "string",
+                    "description": "Optionally provide the full email body to auto-extract the download URL",
+                },
+            },
+            "required": ["client_id"],
+        },
+    },
+}
+
 # Web Search Tool
 WEB_SEARCH_TOOL = {
     "type": "function",
@@ -512,6 +538,7 @@ WEB_TOOLS = [
 MATTERPORT_TOOLS = [
     GET_MATTERPORT_TOUR_TOOL,
     LIST_MATTERPORT_MODELS_TOOL,
+    DOWNLOAD_MATTERPORT_ZIP_TOOL,
 ]
 
 CLIENT_TOOLS = [
@@ -539,6 +566,7 @@ FULL_TOOL_SET = [
     ADD_PENDING_ITEM_TOOL,
     GET_MATTERPORT_TOUR_TOOL,
     LIST_MATTERPORT_MODELS_TOOL,
+    DOWNLOAD_MATTERPORT_ZIP_TOOL,
 ]
 
 

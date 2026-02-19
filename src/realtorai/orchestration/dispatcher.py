@@ -63,6 +63,8 @@ class Dispatcher:
             return await self._handle_get_matterport_tour(arguments)
         elif tool_name == "list_matterport_models":
             return await self._handle_list_matterport_models(arguments)
+        elif tool_name == "download_matterport_zip":
+            return await self._handle_download_matterport_zip(arguments)
         else:
             logger.warning("unknown_tool", tool=tool_name)
             return {"error": f"Unknown tool: {tool_name}"}
@@ -612,6 +614,63 @@ class Dispatcher:
             }
         except Exception as e:
             logger.error("list_matterport_models_error", error=str(e))
+            return {"error": str(e)}
+
+    async def _handle_download_matterport_zip(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Handle download_matterport_zip tool call - downloads zip from email link."""
+        from realtorai.integrations.matterport import (
+            process_matterport_email,
+            download_and_extract_zip,
+            extract_download_url,
+        )
+        from realtorai.storage.database import get_database
+
+        client_id = args.get("client_id")
+        if not client_id:
+            return {"error": "client_id is required"}
+
+        try:
+            # Get client name for folder path
+            db = await get_database()
+            client = await db.get_client(client_id)
+            if not client:
+                return {"error": f"Client {client_id} not found"}
+
+            # Get download URL from args or extract from email body
+            download_url = args.get("download_url")
+            email_body = args.get("email_body")
+
+            if not download_url and email_body:
+                download_url = extract_download_url(email_body)
+
+            if not download_url:
+                return {"error": "No download URL provided or found in email body"}
+
+            # Download and extract
+            result = await download_and_extract_zip(
+                url=download_url,
+                client_id=client_id,
+                client_name=client["name"],
+            )
+
+            if result.get("status") == "error":
+                return result
+
+            return {
+                "status": "success",
+                "client_id": client_id,
+                "matterport_dir": result.get("matterport_dir"),
+                "files_extracted": result.get("files_extracted"),
+                "images_count": result.get("images_count"),
+                "models_count": result.get("models_count"),
+                "summary": (
+                    f"Downloaded Matterport assets for {client['name']}: "
+                    f"{result.get('files_extracted', 0)} files extracted "
+                    f"({result.get('images_count', 0)} images, {result.get('models_count', 0)} 3D models)"
+                ),
+            }
+        except Exception as e:
+            logger.error("download_matterport_zip_error", client_id=client_id, error=str(e))
             return {"error": str(e)}
 
 
