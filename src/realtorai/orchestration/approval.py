@@ -1,0 +1,202 @@
+"""Approval loop for agent review of proposed actions."""
+
+from datetime import datetime
+from typing import Any
+
+import structlog
+
+from realtorai.orchestration.feedback import FeedbackLogger
+from realtorai.schemas.tasks import ApprovalAction, ApprovalStatus, Task, TaskType
+from realtorai.storage.database import get_database
+
+logger = structlog.get_logger()
+
+
+class ApprovalLoop:
+    """Handles the propose → review → approve/edit/reject → execute cycle."""
+
+    def __init__(self) -> None:
+        self.feedback_logger = FeedbackLogger()
+
+    async def approve(self, task: Task) -> bool:
+        """Approve a task as-is and execute it.
+
+        Returns True if execution succeeded.
+        """
+        logger.info("task_approved", task_id=task.id, task_type=task.task_type.value)
+
+        # Record approval action
+        action = ApprovalAction(
+            status=ApprovalStatus.APPROVED,
+            timestamp=datetime.utcnow(),
+        )
+
+        # Update database
+        db = await get_database()
+        await db.update_task_status(
+            task.id,
+            ApprovalStatus.EXECUTING.value,
+            action.model_dump(mode="json"),
+        )
+
+        # Execute the action
+        try:
+            await self._execute(task)
+
+            # Mark as completed
+            await db.update_task_status(
+                task.id,
+                ApprovalStatus.APPROVED.value,
+                action.model_dump(mode="json"),
+            )
+
+            # Log feedback for RL
+            await self.feedback_logger.log_approval(task)
+
+            return True
+
+        except Exception as e:
+            logger.exception("task_execution_failed", task_id=task.id, error=str(e))
+
+            # Mark as failed
+            failed_action = ApprovalAction(
+                status=ApprovalStatus.FAILED,
+                agent_notes=str(e),
+                timestamp=datetime.utcnow(),
+            )
+            await db.update_task_status(
+                task.id,
+                ApprovalStatus.FAILED.value,
+                failed_action.model_dump(mode="json"),
+            )
+
+            return False
+
+    async def approve_with_edits(
+        self, task: Task, edited_content: dict[str, Any]
+    ) -> bool:
+        """Approve a task after editing and execute it.
+
+        Returns True if execution succeeded.
+        """
+        logger.info(
+            "task_approved_with_edits",
+            task_id=task.id,
+            task_type=task.task_type.value,
+        )
+
+        # Record approval action with edits
+        action = ApprovalAction(
+            status=ApprovalStatus.EDITED,
+            edited_content=edited_content,
+            timestamp=datetime.utcnow(),
+        )
+
+        # Update the task's proposal data with edits
+        updated_task = task.model_copy()
+        updated_task.proposal_data = {**task.proposal_data, **edited_content}
+
+        # Update database
+        db = await get_database()
+        await db.update_task_status(
+            task.id,
+            ApprovalStatus.EXECUTING.value,
+            action.model_dump(mode="json"),
+        )
+
+        # Execute with edited content
+        try:
+            await self._execute(updated_task)
+
+            # Mark as completed
+            await db.update_task_status(
+                task.id,
+                ApprovalStatus.EDITED.value,
+                action.model_dump(mode="json"),
+            )
+
+            # Log feedback for RL (edits are valuable training signal)
+            await self.feedback_logger.log_edit(task, edited_content)
+
+            return True
+
+        except Exception as e:
+            logger.exception("task_execution_failed", task_id=task.id, error=str(e))
+
+            failed_action = ApprovalAction(
+                status=ApprovalStatus.FAILED,
+                edited_content=edited_content,
+                agent_notes=str(e),
+                timestamp=datetime.utcnow(),
+            )
+            await db.update_task_status(
+                task.id,
+                ApprovalStatus.FAILED.value,
+                failed_action.model_dump(mode="json"),
+            )
+
+            return False
+
+    async def reject(self, task: Task, reason: str | None = None) -> None:
+        """Reject a task without executing."""
+        logger.info(
+            "task_rejected",
+            task_id=task.id,
+            task_type=task.task_type.value,
+            reason=reason,
+        )
+
+        action = ApprovalAction(
+            status=ApprovalStatus.REJECTED,
+            rejection_reason=reason,
+            timestamp=datetime.utcnow(),
+        )
+
+        db = await get_database()
+        await db.update_task_status(
+            task.id,
+            ApprovalStatus.REJECTED.value,
+            action.model_dump(mode="json"),
+        )
+
+        # Log feedback for RL (rejections are strong negative signal)
+        await self.feedback_logger.log_rejection(task, reason)
+
+    async def _execute(self, task: Task) -> None:
+        """Execute a task based on its type."""
+        if task.task_type == TaskType.EMAIL_RESPONSE:
+            await self._execute_email_response(task)
+        elif task.task_type == TaskType.CALENDAR_EVENT:
+            await self._execute_calendar_event(task)
+        else:
+            logger.warning("unknown_task_type", task_type=task.task_type.value)
+
+    async def _execute_email_response(self, task: Task) -> None:
+        """Execute an email response task."""
+        from realtorai.integrations.graph.email import send_email
+
+        proposal = task.proposal_data
+        draft = proposal.get("draft_response", {})
+
+        if not draft:
+            raise ValueError("No draft response in task")
+
+        reply_to_id = task.related_email_id
+
+        await send_email(
+            to=task.details.get("sender_email", ""),
+            subject=draft.get("subject", ""),
+            body=draft.get("body", ""),
+            reply_to_id=reply_to_id,
+        )
+
+        logger.info("email_sent", task_id=task.id, to=task.details.get("sender_email"))
+
+    async def _execute_calendar_event(self, task: Task) -> None:
+        """Execute a calendar event task."""
+        # TODO: Implement calendar event creation
+        logger.warning("calendar_event_not_implemented", task_id=task.id)
+
+
+# Default instance
+approval_loop = ApprovalLoop()

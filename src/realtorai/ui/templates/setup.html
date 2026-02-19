@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Setup — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="setup-page">
+    <header class="page-header">
+        <h1>Setup</h1>
+        <p class="subtitle">Configure your RealtorAI instance</p>
+    </header>
+
+    <div class="setup-sections">
+        <!-- Microsoft Graph Setup -->
+        <section class="setup-section">
+            <div class="setup-header">
+                <h2>Microsoft Outlook</h2>
+                {% if graph_connected %}
+                <span class="status-badge connected">Connected</span>
+                {% elif graph_configured %}
+                <span class="status-badge warning">Configured, not connected</span>
+                {% else %}
+                <span class="status-badge disconnected">Not configured</span>
+                {% endif %}
+            </div>
+
+            <p class="setup-description">
+                Connect your Outlook account to enable email triage and calendar management.
+            </p>
+
+            {% if not graph_configured %}
+            <div class="setup-instructions">
+                <h3>Configuration Required</h3>
+                <ol>
+                    <li>Register an app at <a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps" target="_blank">Azure Portal</a></li>
+                    <li>Add redirect URI: <code>http://localhost:8421/callback</code></li>
+                    <li>Grant permissions: Mail.Read, Mail.Send, Calendars.ReadWrite</li>
+                    <li>Copy the Client ID to your <code>.env</code> file</li>
+                </ol>
+            </div>
+            {% elif not graph_connected %}
+            <button class="btn btn-primary"
+                    hx-post="/setup/graph"
+                    hx-swap="none"
+                    hx-on::after-request="window.location.reload()">
+                Connect Outlook
+            </button>
+            {% else %}
+            <p class="setup-complete">
+                Your Outlook account is connected. Email polling will work when the daemon is running.
+            </p>
+            <button class="btn btn-secondary"
+                    hx-post="/setup/graph"
+                    hx-swap="none"
+                    hx-on::after-request="window.location.reload()">
+                Reconnect
+            </button>
+            {% endif %}
+        </section>
+
+        <!-- Model Status -->
+        <section class="setup-section">
+            <div class="setup-header">
+                <h2>LLM Model</h2>
+                <span class="status-badge warning">Not loaded</span>
+            </div>
+
+            <p class="setup-description">
+                RealtorAI uses a local Llama 3.2 model running on MLX.
+            </p>
+
+            <div class="setup-instructions">
+                <h3>Model Setup</h3>
+                <p>Run this command to download the model:</p>
+                <pre><code>python scripts/setup_model.py</code></pre>
+                <p>The model will be loaded automatically when you start the daemon.</p>
+            </div>
+        </section>
+
+        <!-- Daemon Status -->
+        <section class="setup-section">
+            <div class="setup-header">
+                <h2>Background Daemon</h2>
+                <span class="status-badge disconnected">Not running</span>
+            </div>
+
+            <p class="setup-description">
+                The daemon polls for new emails and processes them in the background.
+            </p>
+
+            <div class="setup-instructions">
+                <h3>Start the Daemon</h3>
+                <pre><code>realtorai daemon</code></pre>
+                <p>Or run in foreground for debugging:</p>
+                <pre><code>realtorai daemon --foreground</code></pre>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

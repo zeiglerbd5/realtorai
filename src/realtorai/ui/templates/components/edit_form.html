@@ -1,0 +1,63 @@
+<div class="task-card editing" data-task-id="{{ task.id }}">
+    <form hx-post="/actions/{{ task.id }}/edit"
+          hx-swap="outerHTML"
+          hx-target="closest .task-card">
+
+        <div class="task-header">
+            <span class="task-type {{ task.task_type.value }}">
+                {{ task.task_type.value | replace('_', ' ') | title }}
+            </span>
+            <span class="editing-badge">Editing</span>
+        </div>
+
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text"
+                   id="title"
+                   name="title"
+                   value="{{ task.title }}"
+                   class="form-input">
+        </div>
+
+        {% if task.proposal_data.get('draft_response') %}
+        <div class="form-group">
+            <label for="subject">Email Subject</label>
+            <input type="text"
+                   id="subject"
+                   name="subject"
+                   value="{{ task.proposal_data.draft_response.subject }}"
+                   class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label for="body">Email Body</label>
+            <textarea id="body"
+                      name="body"
+                      rows="8"
+                      class="form-textarea">{{ task.proposal_data.draft_response.body }}</textarea>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="notes">Notes (optional)</label>
+            <textarea id="notes"
+                      name="notes"
+                      rows="2"
+                      placeholder="Add any notes about your edits..."
+                      class="form-textarea"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                Save & Approve
+            </button>
+            <button type="button"
+                    class="btn btn-secondary"
+                    hx-get="/actions/{{ task.id }}/detail"
+                    hx-swap="outerHTML"
+                    hx-target="closest .task-card">
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>

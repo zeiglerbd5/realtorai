@@ -1,0 +1,14 @@
+{% if user_message %}
+<div class="message user">
+    <div class="message-content">
+        <p>{{ user_message }}</p>
+    </div>
+</div>
+{% endif %}
+{% if assistant_message %}
+<div class="message assistant">
+    <div class="message-content">
+        {{ assistant_message | safe }}
+    </div>
+</div>
+{% endif %}

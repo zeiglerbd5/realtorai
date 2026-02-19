@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Clients — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="clients-page">
+    <header class="page-header">
+        <div class="header-nav">
+            <a href="/" class="back-link">← Dashboard</a>
+        </div>
+        <h1>All Clients</h1>
+    </header>
+
+    <div class="filters">
+        <a href="/clients" class="filter-btn {% if not status_filter %}active{% endif %}">All</a>
+        <a href="/clients?status=lead" class="filter-btn {% if status_filter == 'lead' %}active{% endif %}">Leads</a>
+        <a href="/clients?status=active" class="filter-btn {% if status_filter == 'active' %}active{% endif %}">Active</a>
+        <a href="/clients?status=pending" class="filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+        <a href="/clients?status=closed" class="filter-btn {% if status_filter == 'closed' %}active{% endif %}">Closed</a>
+    </div>
+
+    {% if clients %}
+    <div class="clients-grid">
+        {% for client in clients %}
+        <a href="/clients/{{ client.id }}" class="client-card">
+            <div class="client-header">
+                <span class="client-name">{{ client.name }}</span>
+                <span class="client-status {{ client.status }}">
+                    {{ client.status | replace('_', ' ') | title }}
+                </span>
+            </div>
+            <div class="client-details">
+                {% if client.property_address %}
+                <div class="detail-row">
+                    <span class="label">Property</span>
+                    <span class="value">{{ client.property_address }}</span>
+                </div>
+                {% endif %}
+                {% if client.transaction_type %}
+                <div class="detail-row">
+                    <span class="label">Type</span>
+                    <span class="value">{{ client.transaction_type | title }}</span>
+                </div>
+                {% endif %}
+                {% if client.price %}
+                <div class="detail-row">
+                    <span class="label">Price</span>
+                    <span class="value">${{ "{:,.0f}".format(client.price) }}</span>
+                </div>
+                {% endif %}
+                {% if client.email %}
+                <div class="detail-row">
+                    <span class="label">Email</span>
+                    <span class="value">{{ client.email }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="client-footer">
+                <span class="created">Added {{ client.created_at[:10] }}</span>
+                {% if client.room_id %}
+                <span class="room-badge">Room #{{ client.room_id }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No clients found</p>
+        <p class="subtle">Say "new client [name]" in chat to add one</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.clients-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    margin-bottom: var(--spacing-lg);
+}
+
+.page-header h1 {
+    margin-top: var(--spacing-sm);
+}
+
+.back-link {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.filters {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xl);
+}
+
+.filter-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.filter-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.filter-btn.active {
+    background: var(--accent-blue);
+    color: white;
+}
+
+.clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.client-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.client-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.client-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.client-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.client-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.client-status.lead {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--accent-blue);
+}
+
+.client-status.active {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent-green);
+}
+
+.client-status.pending {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--accent-yellow);
+}
+
+.client-status.closed {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-muted);
+}
+
+.client-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+}
+
+.detail-row .label {
+    color: var(--text-muted);
+}
+
+.detail-row .value {
+    color: var(--text-secondary);
+}
+
+.client-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    font-size: 0.75rem;
+}
+
+.created {
+    color: var(--text-muted);
+}
+
+.room-badge {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--accent-purple);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+}
+
+.empty-state .subtle {
+    font-size: 0.875rem;
+    margin-top: var(--spacing-sm);
+}
+</style>
+{% endblock %}

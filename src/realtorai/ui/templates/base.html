@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RealtorAI{% endblock %}</title>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/styles.css">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">RealtorAI</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="/queue" class="{% if '/queue' in request.url.path %}active{% endif %}">
+                Queue
+                <span id="queue-badge"
+                      hx-get="/queue/count"
+                      hx-trigger="load, every 30s"
+                      hx-swap="outerHTML">
+                </span>
+            </a>
+            <a href="/chat" class="{% if '/chat' in request.url.path %}active{% endif %}">Chat</a>
+            <a href="/setup" class="{% if '/setup' in request.url.path %}active{% endif %}">Setup</a>
+        </div>
+        <div class="nav-status">
+            {% if graph_connected %}
+            <span class="status-indicator connected" title="Outlook connected"></span>
+            {% else %}
+            <span class="status-indicator disconnected" title="Outlook not connected"></span>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>RealtorAI v0.1.0 — Local-first AI for real estate</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
