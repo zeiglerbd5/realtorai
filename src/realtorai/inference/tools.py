@@ -488,6 +488,102 @@ DOWNLOAD_MATTERPORT_ZIP_TOOL = {
     },
 }
 
+# MLS Feeder Tool
+UPDATE_MLS_FEEDER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "update_mls_feeder",
+        "description": "Update the MLS listing feeder with property details extracted from emails, documents, or conversations. The feeder accumulates information until ready for MLS submission. Use this whenever you learn new details about a property listing.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+                "address": {
+                    "type": "object",
+                    "description": "Property address fields",
+                    "properties": {
+                        "street_number": {"type": "string"},
+                        "street_name": {"type": "string"},
+                        "street_suffix": {"type": "string"},
+                        "unit_number": {"type": "string"},
+                        "city": {"type": "string"},
+                        "state": {"type": "string"},
+                        "postal_code": {"type": "string"},
+                    },
+                },
+                "property": {
+                    "type": "object",
+                    "description": "Property details",
+                    "properties": {
+                        "type": {"type": "string", "description": "Residential, Condo, Townhouse, Land, Multi-Family"},
+                        "year_built": {"type": "integer"},
+                        "bedrooms": {"type": "integer"},
+                        "bathrooms_full": {"type": "integer"},
+                        "bathrooms_half": {"type": "integer"},
+                        "living_area_sqft": {"type": "integer"},
+                        "lot_size_sqft": {"type": "integer"},
+                        "garage_spaces": {"type": "integer"},
+                    },
+                },
+                "listing": {
+                    "type": "object",
+                    "description": "Listing information",
+                    "properties": {
+                        "price": {"type": "integer"},
+                        "showing_instructions": {"type": "string"},
+                    },
+                },
+                "marketing": {
+                    "type": "object",
+                    "description": "Marketing content",
+                    "properties": {
+                        "public_remarks": {"type": "string", "description": "Main listing description"},
+                        "private_remarks": {"type": "string", "description": "Agent-only notes"},
+                        "virtual_tour_url": {"type": "string"},
+                    },
+                },
+                "features": {
+                    "type": "object",
+                    "description": "Property features and amenities",
+                    "properties": {
+                        "heating": {"type": "array", "items": {"type": "string"}},
+                        "cooling": {"type": "array", "items": {"type": "string"}},
+                        "appliances": {"type": "array", "items": {"type": "string"}},
+                        "interior_features": {"type": "array", "items": {"type": "string"}},
+                        "exterior_features": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "source": {
+                    "type": "string",
+                    "description": "Where this info came from (email, document, conversation)",
+                },
+            },
+            "required": ["client_id"],
+        },
+    },
+}
+
+GET_MLS_FEEDER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_mls_feeder",
+        "description": "Get the current MLS feeder status and contents for a client. Shows what property details have been collected and what's still missing.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+            },
+            "required": ["client_id"],
+        },
+    },
+}
+
 # Web Search Tool
 WEB_SEARCH_TOOL = {
     "type": "function",
@@ -529,6 +625,8 @@ MLS_TOOLS = [
     GET_LISTING_DETAILS_TOOL,
     FIND_COMPS_TOOL,
     GET_MARKET_STATS_TOOL,
+    UPDATE_MLS_FEEDER_TOOL,
+    GET_MLS_FEEDER_TOOL,
 ]
 
 WEB_TOOLS = [
@@ -567,6 +665,8 @@ FULL_TOOL_SET = [
     GET_MATTERPORT_TOUR_TOOL,
     LIST_MATTERPORT_MODELS_TOOL,
     DOWNLOAD_MATTERPORT_ZIP_TOOL,
+    UPDATE_MLS_FEEDER_TOOL,
+    GET_MLS_FEEDER_TOOL,
 ]
 
 

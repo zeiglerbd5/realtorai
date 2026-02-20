@@ -181,3 +181,10 @@ lsof -ti :8421 | xargs kill -9
 ---
 
 *Last updated: 2026-02-17*
+
+## Future Improvements
+
+### Matterport Integration
+- [ ] Filter dashboard to show only MLS-ready images (curated listing photos), not all panoramic skybox images
+- [ ] Matterport zip downloads typically include curated "highlight" images - prioritize those in the UI
+
