@@ -65,6 +65,10 @@ class Dispatcher:
             return await self._handle_list_matterport_models(arguments)
         elif tool_name == "download_matterport_zip":
             return await self._handle_download_matterport_zip(arguments)
+        elif tool_name == "update_mls_feeder":
+            return await self._handle_update_mls_feeder(arguments)
+        elif tool_name == "get_mls_feeder":
+            return await self._handle_get_mls_feeder(arguments)
         else:
             logger.warning("unknown_tool", tool=tool_name)
             return {"error": f"Unknown tool: {tool_name}"}
@@ -671,6 +675,105 @@ class Dispatcher:
             }
         except Exception as e:
             logger.error("download_matterport_zip_error", client_id=client_id, error=str(e))
+            return {"error": str(e)}
+
+    # MLS Feeder Tools
+
+    async def _handle_update_mls_feeder(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Handle update_mls_feeder tool call - updates listing data."""
+        from realtorai.integrations.spark.mls_feeder import (
+            update_mls_feeder,
+            get_mls_feeder,
+            create_mls_feeder,
+            format_feeder_summary,
+            get_feeder_completeness,
+        )
+        from realtorai.storage.database import get_database
+
+        client_id = args.get("client_id")
+        if not client_id:
+            return {"error": "client_id is required"}
+
+        try:
+            db = await get_database()
+            client = await db.get_client(client_id)
+            if not client:
+                return {"error": f"Client {client_id} not found"}
+
+            # Build updates dict from args
+            updates = {}
+            for key in ["address", "property", "listing", "marketing", "features"]:
+                if args.get(key):
+                    updates[key] = args[key]
+
+            if not updates:
+                return {"error": "No update fields provided"}
+
+            source = args.get("source", "conversation")
+
+            feeder = update_mls_feeder(
+                client_id=client_id,
+                name=client["name"],
+                updates=updates,
+                source=source,
+            )
+
+            completeness = get_feeder_completeness(feeder)
+
+            return {
+                "status": "success",
+                "client_id": client_id,
+                "feeder_status": feeder.get("status"),
+                "completeness_pct": completeness["completeness_pct"],
+                "missing_fields": completeness["missing_fields"],
+                "summary": format_feeder_summary(feeder),
+            }
+        except Exception as e:
+            logger.error("update_mls_feeder_error", client_id=client_id, error=str(e))
+            return {"error": str(e)}
+
+    async def _handle_get_mls_feeder(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Handle get_mls_feeder tool call - retrieves feeder status."""
+        from realtorai.integrations.spark.mls_feeder import (
+            get_mls_feeder,
+            format_feeder_summary,
+            get_feeder_completeness,
+        )
+        from realtorai.storage.database import get_database
+
+        client_id = args.get("client_id")
+        if not client_id:
+            return {"error": "client_id is required"}
+
+        try:
+            db = await get_database()
+            client = await db.get_client(client_id)
+            if not client:
+                return {"error": f"Client {client_id} not found"}
+
+            feeder = get_mls_feeder(client_id, client["name"])
+
+            if feeder is None:
+                return {
+                    "status": "success",
+                    "has_feeder": False,
+                    "message": "No MLS feeder exists yet for this client. Use update_mls_feeder to start collecting listing data.",
+                }
+
+            completeness = get_feeder_completeness(feeder)
+
+            return {
+                "status": "success",
+                "has_feeder": True,
+                "client_id": client_id,
+                "feeder_status": feeder.get("status"),
+                "completeness_pct": completeness["completeness_pct"],
+                "missing_fields": completeness["missing_fields"],
+                "feeder": feeder,
+                "summary": format_feeder_summary(feeder),
+            }
+        except Exception as e:
+            logger.error("get_mls_feeder_error", client_id=client_id, error=str(e))
             return {"error": str(e)}
 
 

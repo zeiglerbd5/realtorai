@@ -14,6 +14,16 @@ from realtorai.integrations.spark.listings import (
     get_market_stats,
     format_listing_summary,
 )
+from realtorai.integrations.spark.mls_feeder import (
+    get_mls_feeder,
+    create_mls_feeder,
+    update_mls_feeder,
+    set_feeder_status,
+    link_matterport_to_feeder,
+    update_photos_in_feeder,
+    get_feeder_completeness,
+    format_feeder_summary,
+)
 
 __all__ = [
     # Auth
@@ -29,4 +39,13 @@ __all__ = [
     "find_comps",
     "get_market_stats",
     "format_listing_summary",
+    # MLS Feeder
+    "get_mls_feeder",
+    "create_mls_feeder",
+    "update_mls_feeder",
+    "set_feeder_status",
+    "link_matterport_to_feeder",
+    "update_photos_in_feeder",
+    "get_feeder_completeness",
+    "format_feeder_summary",
 ]
