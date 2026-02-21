@@ -112,9 +112,234 @@
             </button>
         </div>
 
+        <h3>MLS Listing <span id="feeder-unsaved" class="unsaved-badge">unsaved</span></h3>
+        {% if mls_feeder %}
+        <div class="mls-feeder-card" onclick="openFeederEditor()" style="cursor: pointer;">
+            <div class="feeder-progress">
+                <div class="progress-ring" data-progress="{{ mls_completeness.completeness_pct }}">
+                    <svg viewBox="0 0 36 36">
+                        <path class="progress-bg"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--bg-tertiary)"
+                            stroke-width="3"/>
+                        <path class="progress-fill"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--accent-blue)"
+                            stroke-width="3"
+                            stroke-dasharray="{{ mls_completeness.completeness_pct }}, 100"/>
+                    </svg>
+                    <span class="progress-text">{{ mls_completeness.completeness_pct }}%</span>
+                </div>
+                <div class="feeder-info">
+                    <span class="feeder-status {{ mls_feeder.status }}">{{ mls_feeder.status|upper }}</span>
+                    <span class="feeder-fields">{{ mls_completeness.filled_count }}/{{ mls_completeness.total_required }} fields</span>
+                </div>
+            </div>
+            {% if mls_completeness.missing_fields %}
+            <div class="feeder-missing">
+                <span class="missing-label">Missing:</span>
+                {% for field in mls_completeness.missing_fields[:3] %}
+                <span class="missing-field">{{ field.split('.')[-1] }}</span>
+                {% endfor %}
+                {% if mls_completeness.missing_fields|length > 3 %}
+                <span class="missing-more">+{{ mls_completeness.missing_fields|length - 3 }} more</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="mls-feeder-empty" onclick="openFeederEditor()" style="cursor: pointer;">
+            <p class="empty-state">No listing data yet</p>
+            <p class="empty-cta">Click to add</p>
+        </div>
+        {% endif %}
+
         <h3>File Location</h3>
         <p class="file-path">{{ client.file_path }}</p>
     </aside>
+</div>
+
+<!-- MLS Feeder Editor Modal -->
+<div id="feeder-modal" class="feeder-modal" style="display: none;">
+    <div class="feeder-modal-content">
+        <div class="modal-header">
+            <h2>MLS Listing Data</h2>
+            <button class="modal-close" onclick="closeFeederModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-section">
+                <h3>Address</h3>
+                <div class="form-grid">
+                    <div class="form-group small">
+                        <label for="addr-street-number">Number</label>
+                        <input type="text" id="addr-street-number" placeholder="123">
+                    </div>
+                    <div class="form-group">
+                        <label for="addr-street-name">Street Name</label>
+                        <input type="text" id="addr-street-name" placeholder="Main">
+                    </div>
+                    <div class="form-group small">
+                        <label for="addr-street-suffix">Suffix</label>
+                        <input type="text" id="addr-street-suffix" placeholder="St">
+                    </div>
+                    <div class="form-group small">
+                        <label for="addr-unit">Unit</label>
+                        <input type="text" id="addr-unit" placeholder="2B">
+                    </div>
+                    <div class="form-group">
+                        <label for="addr-city">City</label>
+                        <input type="text" id="addr-city" placeholder="Boston">
+                    </div>
+                    <div class="form-group small">
+                        <label for="addr-state">State</label>
+                        <input type="text" id="addr-state" placeholder="MA">
+                    </div>
+                    <div class="form-group small">
+                        <label for="addr-postal">ZIP</label>
+                        <input type="text" id="addr-postal" placeholder="02101">
+                    </div>
+                    <div class="form-group">
+                        <label for="addr-county">County</label>
+                        <input type="text" id="addr-county" placeholder="Suffolk">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Property Details</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="prop-type">Type</label>
+                        <select id="prop-type">
+                            <option value="">Select...</option>
+                            <option value="Residential">Residential</option>
+                            <option value="Condo">Condo</option>
+                            <option value="Townhouse">Townhouse</option>
+                            <option value="Multi-Family">Multi-Family</option>
+                            <option value="Land">Land</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="prop-subtype">Subtype</label>
+                        <input type="text" id="prop-subtype" placeholder="Single Family">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-year-built">Year Built</label>
+                        <input type="number" id="prop-year-built" placeholder="1990">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-bedrooms">Beds</label>
+                        <input type="number" id="prop-bedrooms" placeholder="3">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-baths-full">Full Baths</label>
+                        <input type="number" id="prop-baths-full" placeholder="2">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-baths-half">Half Baths</label>
+                        <input type="number" id="prop-baths-half" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="prop-sqft">Living Area (sqft)</label>
+                        <input type="number" id="prop-sqft" placeholder="2000">
+                    </div>
+                    <div class="form-group">
+                        <label for="prop-lot-sqft">Lot Size (sqft)</label>
+                        <input type="number" id="prop-lot-sqft" placeholder="5000">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-stories">Stories</label>
+                        <input type="number" id="prop-stories" placeholder="2">
+                    </div>
+                    <div class="form-group small">
+                        <label for="prop-garage">Garage</label>
+                        <input type="number" id="prop-garage" placeholder="2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Listing</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="list-price">Price ($)</label>
+                        <input type="number" id="list-price" placeholder="425000">
+                    </div>
+                    <div class="form-group wide">
+                        <label for="list-showing">Showing Instructions</label>
+                        <input type="text" id="list-showing" placeholder="Call agent 24 hrs in advance">
+                    </div>
+                    <div class="form-group">
+                        <label for="list-lockbox-type">Lockbox Type</label>
+                        <input type="text" id="list-lockbox-type" placeholder="SentriLock">
+                    </div>
+                    <div class="form-group">
+                        <label for="list-lockbox-code">Lockbox Code</label>
+                        <input type="text" id="list-lockbox-code" placeholder="1234">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Marketing</h3>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="mkt-remarks">Public Remarks</label>
+                        <textarea id="mkt-remarks" rows="4" placeholder="Beautiful 3-bedroom home in the heart of..."></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label for="mkt-private">Private Remarks (Agent Only)</label>
+                        <textarea id="mkt-private" rows="2" placeholder="Seller motivated..."></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label for="mkt-directions">Directions</label>
+                        <input type="text" id="mkt-directions" placeholder="From I-90, exit 22...">
+                    </div>
+                    <div class="form-group full">
+                        <label for="mkt-tour-url">Virtual Tour URL</label>
+                        <input type="url" id="mkt-tour-url" placeholder="https://my.matterport.com/show/?m=...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Financial</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fin-hoa-fee">HOA Fee ($)</label>
+                        <input type="number" id="fin-hoa-fee" placeholder="350">
+                    </div>
+                    <div class="form-group">
+                        <label for="fin-hoa-freq">HOA Frequency</label>
+                        <select id="fin-hoa-freq">
+                            <option value="">Select...</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Quarterly">Quarterly</option>
+                            <option value="Annually">Annually</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fin-tax">Annual Taxes ($)</label>
+                        <input type="number" id="fin-tax" placeholder="5000">
+                    </div>
+                    <div class="form-group small">
+                        <label for="fin-tax-year">Tax Year</label>
+                        <input type="number" id="fin-tax-year" placeholder="2025">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cancelFeederEdit()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveFeederForm()">Save Changes</button>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -383,6 +608,281 @@
     max-height: 90%;
     border-radius: var(--radius-md);
 }
+
+/* MLS Feeder Card */
+.mls-feeder-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    transition: background 0.15s;
+}
+
+.mls-feeder-card:hover {
+    background: var(--bg-secondary);
+}
+
+.mls-feeder-empty {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    text-align: center;
+    transition: background 0.15s;
+}
+
+.mls-feeder-empty:hover {
+    background: var(--bg-secondary);
+}
+
+.empty-cta {
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    margin-top: var(--spacing-xs);
+}
+
+.feeder-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.progress-ring {
+    position: relative;
+    width: 50px;
+    height: 50px;
+}
+
+.progress-ring svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+}
+
+.progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.feeder-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.feeder-status {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+}
+
+.feeder-status.draft {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+}
+
+.feeder-status.ready {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent-green);
+}
+
+.feeder-status.submitted {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--accent-blue);
+}
+
+.feeder-fields {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.feeder-missing {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.missing-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+}
+
+.missing-field {
+    font-size: 0.625rem;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-red);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.missing-more {
+    font-size: 0.625rem;
+    color: var(--text-muted);
+}
+
+.unsaved-badge {
+    font-size: 0.625rem;
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--accent-yellow);
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    display: none;
+}
+
+.unsaved-badge.visible {
+    display: inline;
+}
+
+/* MLS Feeder Modal */
+.feeder-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-lg);
+}
+
+.feeder-modal-content {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.form-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+.form-section h3 {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-group.small {
+    grid-column: span 1;
+}
+
+.form-group.wide {
+    grid-column: span 2;
+}
+
+.form-group.full {
+    grid-column: span 4;
+}
+
+.form-group label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.form-group select {
+    cursor: pointer;
+}
 </style>
 
 <script>
@@ -481,5 +981,182 @@ function downloadMatterportTour() {
     })
     .catch(err => alert('Error: ' + err.message));
 }
+
+// MLS Feeder Editor
+const feederData = {{ mls_feeder | tojson | safe if mls_feeder else '{}' }};
+let initialFeederState = {};
+let feederListenersAttached = false;
+
+function captureFormState() {
+    const state = {};
+    document.querySelectorAll('#feeder-modal input, #feeder-modal select, #feeder-modal textarea')
+        .forEach(el => {
+            state[el.id] = el.value;
+        });
+    return state;
+}
+
+function checkForChanges() {
+    const current = captureFormState();
+    const hasChanges = JSON.stringify(current) !== JSON.stringify(initialFeederState);
+    document.getElementById('feeder-unsaved').classList.toggle('visible', hasChanges);
+}
+
+function openFeederEditor() {
+    document.getElementById('feeder-modal').style.display = 'flex';
+    populateFeederForm();
+    initialFeederState = captureFormState();
+
+    // Attach change listeners (only once)
+    if (!feederListenersAttached) {
+        document.querySelectorAll('#feeder-modal input, #feeder-modal select, #feeder-modal textarea')
+            .forEach(el => el.addEventListener('input', checkForChanges));
+        feederListenersAttached = true;
+    }
+}
+
+function closeFeederModal() {
+    document.getElementById('feeder-modal').style.display = 'none';
+}
+
+function cancelFeederEdit() {
+    // Reset form to initial state
+    Object.keys(initialFeederState).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = initialFeederState[id];
+    });
+    document.getElementById('feeder-unsaved').classList.remove('visible');
+    closeFeederModal();
+}
+
+function populateFeederForm() {
+    // Address fields
+    setField('addr-street-number', feederData.address?.street_number);
+    setField('addr-street-name', feederData.address?.street_name);
+    setField('addr-street-suffix', feederData.address?.street_suffix);
+    setField('addr-unit', feederData.address?.unit_number);
+    setField('addr-city', feederData.address?.city);
+    setField('addr-state', feederData.address?.state);
+    setField('addr-postal', feederData.address?.postal_code);
+    setField('addr-county', feederData.address?.county);
+
+    // Property fields
+    setField('prop-type', feederData.property?.type);
+    setField('prop-subtype', feederData.property?.subtype);
+    setField('prop-year-built', feederData.property?.year_built);
+    setField('prop-bedrooms', feederData.property?.bedrooms);
+    setField('prop-baths-full', feederData.property?.bathrooms_full);
+    setField('prop-baths-half', feederData.property?.bathrooms_half);
+    setField('prop-sqft', feederData.property?.living_area_sqft);
+    setField('prop-lot-sqft', feederData.property?.lot_size_sqft);
+    setField('prop-stories', feederData.property?.stories);
+    setField('prop-garage', feederData.property?.garage_spaces);
+
+    // Listing fields
+    setField('list-price', feederData.listing?.price);
+    setField('list-showing', feederData.listing?.showing_instructions);
+    setField('list-lockbox-type', feederData.listing?.lockbox_type);
+    setField('list-lockbox-code', feederData.listing?.lockbox_code);
+
+    // Marketing fields
+    setField('mkt-remarks', feederData.marketing?.public_remarks);
+    setField('mkt-private', feederData.marketing?.private_remarks);
+    setField('mkt-directions', feederData.marketing?.directions);
+    setField('mkt-tour-url', feederData.marketing?.virtual_tour_url);
+
+    // Financial fields
+    setField('fin-hoa-fee', feederData.financial?.hoa_fee);
+    setField('fin-hoa-freq', feederData.financial?.hoa_frequency);
+    setField('fin-tax', feederData.financial?.tax_amount);
+    setField('fin-tax-year', feederData.financial?.tax_year);
+}
+
+function setField(id, value) {
+    const el = document.getElementById(id);
+    if (el && value !== null && value !== undefined) {
+        el.value = value;
+    }
+}
+
+function getField(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const val = el.value.trim();
+    if (val === '') return null;
+    // Try to parse as number if it looks numeric
+    if (/^\d+$/.test(val)) return parseInt(val, 10);
+    if (/^\d+\.\d+$/.test(val)) return parseFloat(val);
+    return val;
+}
+
+async function saveFeederForm() {
+    const updates = {
+        address: {
+            street_number: getField('addr-street-number'),
+            street_name: getField('addr-street-name'),
+            street_suffix: getField('addr-street-suffix'),
+            unit_number: getField('addr-unit'),
+            city: getField('addr-city'),
+            state: getField('addr-state'),
+            postal_code: getField('addr-postal'),
+            county: getField('addr-county'),
+        },
+        property: {
+            type: getField('prop-type'),
+            subtype: getField('prop-subtype'),
+            year_built: getField('prop-year-built'),
+            bedrooms: getField('prop-bedrooms'),
+            bathrooms_full: getField('prop-baths-full'),
+            bathrooms_half: getField('prop-baths-half'),
+            living_area_sqft: getField('prop-sqft'),
+            lot_size_sqft: getField('prop-lot-sqft'),
+            stories: getField('prop-stories'),
+            garage_spaces: getField('prop-garage'),
+        },
+        listing: {
+            price: getField('list-price'),
+            showing_instructions: getField('list-showing'),
+            lockbox_type: getField('list-lockbox-type'),
+            lockbox_code: getField('list-lockbox-code'),
+        },
+        marketing: {
+            public_remarks: getField('mkt-remarks'),
+            private_remarks: getField('mkt-private'),
+            directions: getField('mkt-directions'),
+            virtual_tour_url: getField('mkt-tour-url'),
+        },
+        financial: {
+            hoa_fee: getField('fin-hoa-fee'),
+            hoa_frequency: getField('fin-hoa-freq'),
+            tax_amount: getField('fin-tax'),
+            tax_year: getField('fin-tax-year'),
+        },
+    };
+
+    try {
+        const response = await fetch('/clients/{{ client.id }}/mls-feeder', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+
+        if (response.ok) {
+            initialFeederState = captureFormState();
+            document.getElementById('feeder-unsaved').classList.remove('visible');
+            document.getElementById('feeder-modal').style.display = 'none';
+            location.reload();
+        } else {
+            const err = await response.json();
+            alert('Failed to save: ' + (err.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeFeederModal();
+});
 </script>
 {% endblock %}

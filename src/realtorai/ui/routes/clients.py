@@ -18,6 +18,12 @@ from realtorai.integrations.matterport.downloader import (
     get_client_matterport_dir,
     get_tour_info,
 )
+from realtorai.integrations.spark.mls_feeder import (
+    get_mls_feeder,
+    get_feeder_completeness,
+    update_mls_feeder,
+    create_mls_feeder,
+)
 
 router = APIRouter()
 
@@ -127,6 +133,12 @@ async def get_client_detail(request: Request, client_id: int) -> HTMLResponse:
                 if f.suffix.lower() in ('.jpg', '.jpeg', '.png')
             ])
 
+    # Get MLS feeder status if available
+    mls_feeder = get_mls_feeder(client_id, client["name"])
+    mls_completeness = None
+    if mls_feeder:
+        mls_completeness = get_feeder_completeness(mls_feeder)
+
     return templates.TemplateResponse(
         "client_detail.html",
         {
@@ -137,6 +149,8 @@ async def get_client_detail(request: Request, client_id: int) -> HTMLResponse:
             "pending_items": pending_items,
             "matterport": matterport_info,
             "matterport_images": matterport_images,
+            "mls_feeder": mls_feeder,
+            "mls_completeness": mls_completeness,
         },
     )
 
@@ -286,6 +300,16 @@ class MatterportDownload(BaseModel):
     max_images: int = 40
 
 
+class MLSFeederUpdate(BaseModel):
+    address: dict | None = None
+    property: dict | None = None
+    listing: dict | None = None
+    marketing: dict | None = None
+    financial: dict | None = None
+    features: dict | None = None
+    media: dict | None = None
+
+
 @router.post("/{client_id}/matterport/download")
 async def download_matterport_tour(client_id: int, request: MatterportDownload) -> dict:
     """Download a Matterport tour for a client."""
@@ -310,6 +334,284 @@ async def download_matterport_tour(client_id: int, request: MatterportDownload) 
         raise HTTPException(status_code=400, detail=result.get("error"))
 
     return result
+
+
+# =============================================================================
+# MLS Feeder endpoints
+# =============================================================================
+
+
+@router.get("/{client_id}/mls-feeder")
+async def get_client_mls_feeder(client_id: int) -> dict:
+    """Get MLS feeder data for a client."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    feeder = get_mls_feeder(client_id, client["name"])
+    if not feeder:
+        return {"has_feeder": False}
+
+    return {
+        "has_feeder": True,
+        "feeder": feeder,
+        "completeness": get_feeder_completeness(feeder),
+    }
+
+
+@router.patch("/{client_id}/mls-feeder")
+async def update_client_mls_feeder(client_id: int, updates: MLSFeederUpdate) -> dict:
+    """Update MLS feeder data for a client."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Check if feeder exists, create if not
+    feeder = get_mls_feeder(client_id, client["name"])
+    if not feeder:
+        feeder = create_mls_feeder(client_id, client["name"])
+
+    # Build update dict from non-None fields
+    update_data = {}
+    for field in ["address", "property", "listing", "marketing", "financial", "features", "media"]:
+        value = getattr(updates, field, None)
+        if value is not None:
+            # Filter out None values within the nested dict
+            filtered = {k: v for k, v in value.items() if v is not None}
+            if filtered:
+                update_data[field] = filtered
+
+    if update_data:
+        feeder = update_mls_feeder(
+            client_id=client_id,
+            name=client["name"],
+            updates=update_data,
+            source="agent",
+        )
+
+    return {
+        "success": True,
+        "feeder": feeder,
+        "completeness": get_feeder_completeness(feeder),
+    }
+
+
+@router.post("/{client_id}/mls-feeder/create")
+async def create_client_mls_feeder(client_id: int) -> dict:
+    """Create a new MLS feeder for a client."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    existing = get_mls_feeder(client_id, client["name"])
+    if existing:
+        return {"created": False, "message": "Feeder already exists", "feeder": existing}
+
+    feeder = create_mls_feeder(client_id, client["name"])
+    return {
+        "created": True,
+        "feeder": feeder,
+        "completeness": get_feeder_completeness(feeder),
+    }
+
+
+@router.post("/{client_id}/mls-feeder/validate")
+async def validate_mls_feeder(client_id: int) -> dict:
+    """Validate MLS feeder before submission."""
+    from realtorai.integrations.spark.submission import validate_feeder_for_submission
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    is_valid, errors = await validate_feeder_for_submission(client_id, client["name"])
+
+    return {
+        "valid": is_valid,
+        "errors": errors,
+    }
+
+
+@router.post("/{client_id}/mls-feeder/submit")
+async def submit_mls_listing(client_id: int) -> dict:
+    """Submit MLS feeder to FlexMLS as a draft listing.
+
+    Creates the listing and uploads photos. Agent must review
+    and publish in FlexMLS interface.
+    """
+    from realtorai.integrations.spark import (
+        spark_auth,
+        submit_listing_with_photos,
+        ListingSubmissionError,
+    )
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Check Spark API connection
+    if not await spark_auth.is_connected():
+        raise HTTPException(
+            status_code=503,
+            detail="Spark API not connected. Configure credentials and authenticate.",
+        )
+
+    try:
+        result = await submit_listing_with_photos(client_id, client["name"])
+        return result
+
+    except ListingSubmissionError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": str(e),
+                "errors": e.errors,
+            },
+        )
+
+
+@router.get("/{client_id}/mls-feeder/status")
+async def get_mls_listing_status(client_id: int) -> dict:
+    """Check status of submitted MLS listing."""
+    from realtorai.integrations.spark import spark_auth, get_listing_status
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    feeder = get_mls_feeder(client_id, client["name"])
+    if not feeder:
+        return {"submitted": False, "message": "No MLS feeder found"}
+
+    listing_id = feeder.get("mls_listing_id")
+    if not listing_id:
+        return {"submitted": False, "message": "Listing not submitted yet"}
+
+    if not await spark_auth.is_connected():
+        return {
+            "submitted": True,
+            "listing_id": listing_id,
+            "status": "unknown",
+            "message": "Cannot check status - Spark API not connected",
+        }
+
+    status = await get_listing_status(listing_id)
+    return {
+        "submitted": True,
+        "listing_id": listing_id,
+        "status": status,
+    }
+
+
+# =============================================================================
+# Buyer Alert endpoints
+# =============================================================================
+
+
+class BuyerCriteriaUpdate(BaseModel):
+    cities: list[str] | None = None
+    postal_codes: list[str] | None = None
+    counties: list[str] | None = None
+    min_price: int | None = None
+    max_price: int | None = None
+    property_types: list[str] | None = None
+    min_beds: int | None = None
+    max_beds: int | None = None
+    min_baths: int | None = None
+    min_sqft: int | None = None
+    max_sqft: int | None = None
+    min_year_built: int | None = None
+    garage_required: bool = False
+    pool_required: bool = False
+    custom_filter: str | None = None
+
+
+@router.get("/{client_id}/buyer-criteria")
+async def get_client_buyer_criteria(client_id: int) -> dict:
+    """Get buyer search criteria for a client."""
+    from realtorai.integrations.spark.buyer_alerts import get_buyer_criteria
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    criteria = get_buyer_criteria(client_id, client["name"])
+    if not criteria:
+        return {"has_criteria": False}
+
+    return {
+        "has_criteria": True,
+        "criteria": criteria.to_dict(),
+        "summary": criteria.summary(),
+        "sparkql": criteria.to_sparkql(),
+    }
+
+
+@router.put("/{client_id}/buyer-criteria")
+async def set_client_buyer_criteria(client_id: int, updates: BuyerCriteriaUpdate) -> dict:
+    """Set or update buyer search criteria for a client."""
+    from realtorai.integrations.spark.buyer_alerts import (
+        update_buyer_criteria,
+        BuyerCriteria,
+    )
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Build update dict from non-None fields
+    update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
+
+    criteria = update_buyer_criteria(client_id, client["name"], update_data)
+
+    return {
+        "success": True,
+        "criteria": criteria.to_dict(),
+        "summary": criteria.summary(),
+        "sparkql": criteria.to_sparkql(),
+    }
+
+
+@router.post("/{client_id}/buyer-criteria/scan")
+async def scan_for_buyer_matches(client_id: int) -> dict:
+    """Manually trigger a scan for new listings matching buyer criteria."""
+    from realtorai.integrations.spark import spark_auth, run_manual_scan
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    if not await spark_auth.is_connected():
+        raise HTTPException(
+            status_code=503,
+            detail="Spark API not connected",
+        )
+
+    matches = await run_manual_scan(client_id, client["name"])
+
+    return {
+        "matches_found": len(matches),
+        "listings": [
+            {
+                "listing_key": l.get("ListingKey"),
+                "address": l.get("UnparsedAddress"),
+                "city": l.get("City"),
+                "price": l.get("ListPrice"),
+                "beds": l.get("BedroomsTotal"),
+                "baths": l.get("BathroomsTotalInteger"),
+            }
+            for l in matches
+        ],
+    }
 
 
 # =============================================================================

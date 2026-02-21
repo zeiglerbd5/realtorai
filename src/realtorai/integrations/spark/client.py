@@ -9,7 +9,10 @@ from typing import Any
 import httpx
 import structlog
 
-from realtorai.integrations.spark.auth import spark_auth, SPARK_API_BASE
+from realtorai.integrations.spark.auth import spark_auth
+
+# Re-export for convenience
+SPARK_API_BASE = "https://sparkapi.com/v1"
 
 logger = structlog.get_logger()
 
