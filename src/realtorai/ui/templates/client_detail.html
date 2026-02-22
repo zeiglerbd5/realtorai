@@ -160,6 +160,54 @@
         </div>
         {% endif %}
 
+        <h3>Transaction <span id="transaction-unsaved" class="unsaved-badge">unsaved</span></h3>
+        {% if transaction %}
+        <div class="transaction-card" onclick="openTransactionEditor()" style="cursor: pointer;">
+            <div class="transaction-progress">
+                <div class="progress-ring" data-progress="{{ transaction_progress.overall_pct }}">
+                    <svg viewBox="0 0 36 36">
+                        <path class="progress-bg"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--bg-tertiary)"
+                            stroke-width="3"/>
+                        <path class="progress-fill"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--accent-green)"
+                            stroke-width="3"
+                            stroke-dasharray="{{ transaction_progress.overall_pct }}, 100"/>
+                    </svg>
+                    <span class="progress-text">{{ transaction_progress.overall_pct }}%</span>
+                </div>
+                <div class="transaction-info">
+                    <span class="transaction-status {{ transaction.status }}">{{ transaction.representation|upper }}</span>
+                    <span class="transaction-fields">{{ transaction_progress.milestones_completed }}/{{ transaction_progress.milestones_total }} milestones</span>
+                </div>
+            </div>
+            {% if transaction_progress.next_actions %}
+            <div class="transaction-next">
+                <span class="next-label">Next:</span>
+                {% for action in transaction_progress.next_actions[:2] %}
+                <span class="next-action">{{ action }}</span>
+                {% endfor %}
+                {% if transaction_progress.next_actions|length > 2 %}
+                <span class="next-more">+{{ transaction_progress.next_actions|length - 2 }} more</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="transaction-empty" onclick="createTransaction()" style="cursor: pointer;">
+            <p class="empty-state">No transaction yet</p>
+            <p class="empty-cta">Click to start tracking</p>
+        </div>
+        {% endif %}
+
         <h3>File Location</h3>
         <p class="file-path">{{ client.file_path }}</p>
     </aside>
@@ -338,6 +386,120 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="cancelFeederEdit()">Cancel</button>
             <button class="btn btn-primary" onclick="saveFeederForm()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction Tracker Modal -->
+<div id="transaction-modal" class="feeder-modal" style="display: none;">
+    <div class="feeder-modal-content">
+        <div class="modal-header">
+            <h2>Transaction Tracker</h2>
+            <button class="modal-close" onclick="closeTransactionModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-section">
+                <h3>Property</h3>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="tx-address">Address</label>
+                        <input type="text" id="tx-address" placeholder="123 Main St">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-city">City</label>
+                        <input type="text" id="tx-city" placeholder="Boston">
+                    </div>
+                    <div class="form-group small">
+                        <label for="tx-state">State</label>
+                        <input type="text" id="tx-state" placeholder="MA">
+                    </div>
+                    <div class="form-group small">
+                        <label for="tx-postal">ZIP</label>
+                        <input type="text" id="tx-postal" placeholder="02101">
+                    </div>
+                    <div class="form-group small">
+                        <label for="tx-year-built">Year Built</label>
+                        <input type="number" id="tx-year-built" placeholder="1990">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Key Dates</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tx-effective-date">Effective Date (P&S)</label>
+                        <input type="date" id="tx-effective-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-inspection-deadline">Inspection Deadline</label>
+                        <input type="date" id="tx-inspection-deadline">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-closing-date">Closing Date</label>
+                        <input type="date" id="tx-closing-date">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-walkthrough-date">Walkthrough Date</label>
+                        <input type="date" id="tx-walkthrough-date">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Financial</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tx-purchase-price">Purchase Price ($)</label>
+                        <input type="number" id="tx-purchase-price" placeholder="425000">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-emd-amount">EMD Amount ($)</label>
+                        <input type="number" id="tx-emd-amount" placeholder="10000">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Contacts</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tx-lender-name">Lender Name</label>
+                        <input type="text" id="tx-lender-name" placeholder="John Smith">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-lender-email">Lender Email</label>
+                        <input type="email" id="tx-lender-email" placeholder="john@lender.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-other-agent-name">Other Agent Name</label>
+                        <input type="text" id="tx-other-agent-name" placeholder="Jane Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="tx-other-agent-email">Other Agent Email</label>
+                        <input type="email" id="tx-other-agent-email" placeholder="jane@realty.com">
+                    </div>
+                </div>
+            </div>
+
+            {% if transaction %}
+            <div class="form-section">
+                <h3>Quick Actions</h3>
+                <div class="milestone-buttons">
+                    <button class="btn btn-sm btn-secondary" onclick="markMilestone('tc_email_sent')">TC Email Sent</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markMilestone('docs_uploaded_dtr')">Docs in DTR</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markMilestone('inspection_scheduled')">Inspection Scheduled</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markMilestone('emd_confirmed')">EMD Confirmed</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markMilestone('clear_to_close')">Clear to Close</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markDocument('purchase_sale_agreement')">P&S Received</button>
+                    <button class="btn btn-sm btn-secondary" onclick="markDocument('appraisal')">Appraisal Received</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTransactionModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveTransactionForm()">Save Changes</button>
         </div>
     </div>
 </div>
@@ -742,6 +904,101 @@
 
 .unsaved-badge.visible {
     display: inline;
+}
+
+/* Transaction Card */
+.transaction-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    transition: background 0.15s;
+}
+
+.transaction-card:hover {
+    background: var(--bg-secondary);
+}
+
+.transaction-empty {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    text-align: center;
+    transition: background 0.15s;
+}
+
+.transaction-empty:hover {
+    background: var(--bg-secondary);
+}
+
+.transaction-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.transaction-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.transaction-status {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--accent-blue);
+}
+
+.transaction-status.buyer {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+}
+
+.transaction-fields {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.transaction-next {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.next-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+}
+
+.next-action {
+    font-size: 0.625rem;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--accent-blue);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.next-more {
+    font-size: 0.625rem;
+    color: var(--text-muted);
+}
+
+.milestone-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.milestone-buttons .btn-sm {
+    font-size: 0.75rem;
+    padding: 6px 10px;
 }
 
 /* MLS Feeder Modal */
@@ -1156,7 +1413,153 @@ async function saveFeederForm() {
 
 // Close modal on Escape key
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeFeederModal();
+    if (e.key === 'Escape') {
+        closeFeederModal();
+        closeTransactionModal();
+    }
 });
+
+// =============================================================================
+// Transaction Tracker
+// =============================================================================
+
+const transactionData = {{ transaction | tojson | safe if transaction else '{}' }};
+
+async function createTransaction() {
+    const repType = confirm('Is this a SELLER representation?\n\nOK = Seller\nCancel = Buyer');
+
+    try {
+        const response = await fetch('/clients/{{ client.id }}/transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ representation: repType ? 'seller' : 'buyer' })
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const err = await response.json();
+            alert('Failed to create transaction: ' + (err.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function openTransactionEditor() {
+    document.getElementById('transaction-modal').style.display = 'flex';
+    populateTransactionForm();
+}
+
+function closeTransactionModal() {
+    document.getElementById('transaction-modal').style.display = 'none';
+}
+
+function populateTransactionForm() {
+    // Property fields
+    setField('tx-address', transactionData.property?.address);
+    setField('tx-city', transactionData.property?.city);
+    setField('tx-state', transactionData.property?.state);
+    setField('tx-postal', transactionData.property?.postal_code);
+    setField('tx-year-built', transactionData.property?.year_built);
+
+    // Date fields
+    setField('tx-effective-date', transactionData.dates?.effective_date);
+    setField('tx-inspection-deadline', transactionData.dates?.inspection_deadline);
+    setField('tx-closing-date', transactionData.dates?.closing_date);
+    setField('tx-walkthrough-date', transactionData.dates?.walkthrough_date);
+
+    // Financial fields
+    setField('tx-purchase-price', transactionData.financial?.purchase_price);
+    setField('tx-emd-amount', transactionData.financial?.emd_amount);
+
+    // Contact fields
+    setField('tx-lender-name', transactionData.contacts?.lender?.name);
+    setField('tx-lender-email', transactionData.contacts?.lender?.email);
+    setField('tx-other-agent-name', transactionData.contacts?.other_agent?.name);
+    setField('tx-other-agent-email', transactionData.contacts?.other_agent?.email);
+}
+
+async function saveTransactionForm() {
+    const updates = {
+        property: {
+            address: getField('tx-address'),
+            city: getField('tx-city'),
+            state: getField('tx-state'),
+            postal_code: getField('tx-postal'),
+            year_built: getField('tx-year-built'),
+        },
+        dates: {
+            effective_date: getField('tx-effective-date'),
+            inspection_deadline: getField('tx-inspection-deadline'),
+            closing_date: getField('tx-closing-date'),
+            walkthrough_date: getField('tx-walkthrough-date'),
+        },
+        financial: {
+            purchase_price: getField('tx-purchase-price'),
+            emd_amount: getField('tx-emd-amount'),
+        },
+        contacts: {
+            lender: {
+                name: getField('tx-lender-name'),
+                email: getField('tx-lender-email'),
+            },
+            other_agent: {
+                name: getField('tx-other-agent-name'),
+                email: getField('tx-other-agent-email'),
+            },
+        },
+    };
+
+    try {
+        const response = await fetch('/clients/{{ client.id }}/transaction', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+
+        if (response.ok) {
+            closeTransactionModal();
+            location.reload();
+        } else {
+            const err = await response.json();
+            alert('Failed to save: ' + (err.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function markMilestone(milestone) {
+    try {
+        const response = await fetch('/clients/{{ client.id }}/transaction/milestone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ milestone, completed: true })
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error marking milestone:', error);
+    }
+}
+
+async function markDocument(document) {
+    try {
+        const response = await fetch('/clients/{{ client.id }}/transaction/document', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document, received: true })
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error marking document:', error);
+    }
+}
 </script>
 {% endblock %}

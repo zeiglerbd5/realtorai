@@ -24,6 +24,14 @@ from realtorai.integrations.spark.mls_feeder import (
     update_mls_feeder,
     create_mls_feeder,
 )
+from realtorai.transactions import (
+    get_transaction,
+    create_transaction,
+    update_transaction,
+    get_transaction_progress,
+    set_milestone,
+    mark_document_received,
+)
 
 router = APIRouter()
 
@@ -139,6 +147,12 @@ async def get_client_detail(request: Request, client_id: int) -> HTMLResponse:
     if mls_feeder:
         mls_completeness = get_feeder_completeness(mls_feeder)
 
+    # Get transaction tracker if available
+    transaction = get_transaction(client_id, client["name"])
+    transaction_progress = None
+    if transaction:
+        transaction_progress = get_transaction_progress(transaction)
+
     return templates.TemplateResponse(
         "client_detail.html",
         {
@@ -151,6 +165,8 @@ async def get_client_detail(request: Request, client_id: int) -> HTMLResponse:
             "matterport_images": matterport_images,
             "mls_feeder": mls_feeder,
             "mls_completeness": mls_completeness,
+            "transaction": transaction,
+            "transaction_progress": transaction_progress,
         },
     )
 
@@ -611,6 +627,157 @@ async def scan_for_buyer_matches(client_id: int) -> dict:
             }
             for l in matches
         ],
+    }
+
+
+# =============================================================================
+# Transaction Tracker endpoints
+# =============================================================================
+
+
+class TransactionCreate(BaseModel):
+    representation: str = "seller"  # "buyer" or "seller"
+
+
+class TransactionUpdate(BaseModel):
+    property: dict | None = None
+    dates: dict | None = None
+    financial: dict | None = None
+    documents: dict | None = None
+    contacts: dict | None = None
+    milestones: dict | None = None
+    seller: dict | None = None
+    buyer: dict | None = None
+
+
+class MilestoneUpdate(BaseModel):
+    milestone: str
+    completed: bool = True
+    date: str | None = None
+
+
+class DocumentUpdate(BaseModel):
+    document: str
+    received: bool = True
+    date: str | None = None
+
+
+@router.get("/{client_id}/transaction")
+async def get_client_transaction(client_id: int) -> dict:
+    """Get transaction tracker for a client."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    transaction = get_transaction(client_id, client["name"])
+    if not transaction:
+        return {"has_transaction": False}
+
+    return {
+        "has_transaction": True,
+        "transaction": transaction,
+        "progress": get_transaction_progress(transaction),
+    }
+
+
+@router.post("/{client_id}/transaction")
+async def create_client_transaction(client_id: int, data: TransactionCreate) -> dict:
+    """Create a new transaction tracker for a client."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    existing = get_transaction(client_id, client["name"])
+    if existing:
+        return {
+            "created": False,
+            "message": "Transaction already exists",
+            "transaction": existing,
+            "progress": get_transaction_progress(existing),
+        }
+
+    transaction = create_transaction(client_id, client["name"], data.representation)
+    return {
+        "created": True,
+        "transaction": transaction,
+        "progress": get_transaction_progress(transaction),
+    }
+
+
+@router.patch("/{client_id}/transaction")
+async def update_client_transaction(client_id: int, updates: TransactionUpdate) -> dict:
+    """Update transaction tracker data."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Build update dict from non-None fields
+    update_data = {}
+    for field in ["property", "dates", "financial", "documents", "contacts", "milestones", "seller", "buyer"]:
+        value = getattr(updates, field, None)
+        if value is not None:
+            update_data[field] = value
+
+    if not update_data:
+        transaction = get_transaction(client_id, client["name"])
+    else:
+        transaction = update_transaction(client_id, client["name"], update_data, source="agent")
+
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    return {
+        "success": True,
+        "transaction": transaction,
+        "progress": get_transaction_progress(transaction),
+    }
+
+
+@router.post("/{client_id}/transaction/milestone")
+async def update_transaction_milestone(client_id: int, data: MilestoneUpdate) -> dict:
+    """Mark a transaction milestone as completed."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    transaction = set_milestone(
+        client_id=client_id,
+        name=client["name"],
+        milestone=data.milestone,
+        completed=data.completed,
+        date=data.date,
+    )
+
+    return {
+        "success": True,
+        "transaction": transaction,
+        "progress": get_transaction_progress(transaction),
+    }
+
+
+@router.post("/{client_id}/transaction/document")
+async def update_transaction_document(client_id: int, data: DocumentUpdate) -> dict:
+    """Mark a document as received."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    transaction = mark_document_received(
+        client_id=client_id,
+        name=client["name"],
+        document=data.document,
+        date=data.date,
+    )
+
+    return {
+        "success": True,
+        "transaction": transaction,
+        "progress": get_transaction_progress(transaction),
     }
 
 
