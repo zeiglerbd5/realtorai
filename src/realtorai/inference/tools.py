@@ -584,6 +584,229 @@ GET_MLS_FEEDER_TOOL = {
     },
 }
 
+# Transaction Tracker Tools
+GET_TRANSACTION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_transaction",
+        "description": "Get the current transaction tracker for a client. Shows deal status, dates, contacts, milestones, and documents for a property under contract.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+            },
+            "required": ["client_id"],
+        },
+    },
+}
+
+UPDATE_TRANSACTION_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "update_transaction",
+        "description": "Update the transaction tracker with data extracted from emails, documents, or conversations. Use this when you learn key dates, contacts, or financial details about a deal.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+                "property": {
+                    "type": "object",
+                    "description": "Property details",
+                    "properties": {
+                        "address": {"type": "string"},
+                        "city": {"type": "string"},
+                        "state": {"type": "string"},
+                        "postal_code": {"type": "string"},
+                        "year_built": {"type": "integer", "description": "Important for Lead Paint (pre-1978)"},
+                    },
+                },
+                "dates": {
+                    "type": "object",
+                    "description": "Key transaction dates",
+                    "properties": {
+                        "effective_date": {"type": "string", "description": "P&S effective date (ISO format)"},
+                        "inspection_deadline": {"type": "string"},
+                        "emd_due_date": {"type": "string", "description": "Earnest money deposit due date"},
+                        "loan_application_deadline": {"type": "string"},
+                        "appraisal_deadline": {"type": "string"},
+                        "closing_date": {"type": "string"},
+                        "walkthrough_date": {"type": "string"},
+                        "financing_contingency": {"type": "string"},
+                        "sale_of_property_contingency": {"type": "string"},
+                    },
+                },
+                "financial": {
+                    "type": "object",
+                    "description": "Financial details",
+                    "properties": {
+                        "purchase_price": {"type": "integer"},
+                        "emd_amount": {"type": "integer", "description": "Earnest money deposit amount"},
+                        "emd_delivered": {"type": "boolean"},
+                        "loan_amount": {"type": "integer"},
+                        "down_payment": {"type": "integer"},
+                    },
+                },
+                "contacts": {
+                    "type": "object",
+                    "description": "People involved in the transaction",
+                    "properties": {
+                        "other_agent": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "email": {"type": "string"},
+                                "phone": {"type": "string"},
+                                "role": {"type": "string", "description": "buyer_agent or listing_agent"},
+                            },
+                        },
+                        "lender": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "email": {"type": "string"},
+                                "phone": {"type": "string"},
+                                "company": {"type": "string"},
+                            },
+                        },
+                        "title_company": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "email": {"type": "string"},
+                                "phone": {"type": "string"},
+                                "attorney": {"type": "string"},
+                            },
+                        },
+                        "inspector": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "email": {"type": "string"},
+                                "phone": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+                "source": {
+                    "type": "string",
+                    "description": "Where this info came from (email, document, conversation)",
+                },
+            },
+            "required": ["client_id"],
+        },
+    },
+}
+
+SET_MILESTONE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "set_milestone",
+        "description": "Mark a transaction milestone as completed. Use this when an email confirms a milestone was reached.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+                "milestone": {
+                    "type": "string",
+                    "description": "Milestone to mark complete",
+                    "enum": [
+                        # Common milestones
+                        "under_contract", "tc_email_sent", "docs_uploaded_dtr",
+                        "inspection_scheduled", "inspection_completed", "emd_confirmed",
+                        "title_company_chosen", "clear_to_close", "walkthrough_scheduled",
+                        "walkthrough_completed", "closing_scheduled", "closed",
+                        # Seller milestones
+                        "mls_status_updated", "seller_disclosures_signed", "title_services_ordered",
+                        "inspection_prep_email_sent", "utility_transfer_coordinated",
+                        "closing_statement_reviewed", "closing_gift_reminder",
+                        # Buyer milestones
+                        "loan_app_received", "proof_of_funds_received", "homeowners_insurance_quoted",
+                        "appraisal_ordered", "appraisal_received", "closing_disclosure_received",
+                        "closing_disclosure_reviewed", "home_warranty_decision",
+                        "utilities_setup_reminder", "comps_prepped_for_appraisal",
+                    ],
+                },
+                "date": {
+                    "type": "string",
+                    "description": "Date milestone was completed (ISO format, defaults to now)",
+                },
+            },
+            "required": ["client_id", "milestone"],
+        },
+    },
+}
+
+MARK_DOCUMENT_RECEIVED_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "mark_document_received",
+        "description": "Mark a transaction document as received. Use this when you learn a document was received.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+                "document": {
+                    "type": "string",
+                    "description": "Document type",
+                    "enum": [
+                        "purchase_sale_agreement", "lead_paint_addendum", "deed",
+                        "property_disclosures", "loan_application_letter", "proof_of_funds",
+                        "appraisal", "inspection_report", "ica_repairs",
+                        "closing_disclosure", "settlement_statement", "mls_spec_sheet",
+                    ],
+                },
+                "date": {
+                    "type": "string",
+                    "description": "Date received (ISO format, defaults to now)",
+                },
+                "reviewed": {
+                    "type": "boolean",
+                    "description": "Whether the document has been reviewed",
+                },
+            },
+            "required": ["client_id", "document"],
+        },
+    },
+}
+
+ADD_TRANSACTION_NOTE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "add_transaction_note",
+        "description": "Add a note to a transaction tracker. Use for observations, issues, or important info.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "The client's ID",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Note content",
+                },
+                "source": {
+                    "type": "string",
+                    "description": "Where this came from (email, phone, etc.)",
+                },
+            },
+            "required": ["client_id", "content"],
+        },
+    },
+}
+
 # Web Search Tool
 WEB_SEARCH_TOOL = {
     "type": "function",
@@ -629,6 +852,14 @@ MLS_TOOLS = [
     GET_MLS_FEEDER_TOOL,
 ]
 
+TRANSACTION_TOOLS = [
+    GET_TRANSACTION_TOOL,
+    UPDATE_TRANSACTION_TOOL,
+    SET_MILESTONE_TOOL,
+    MARK_DOCUMENT_RECEIVED_TOOL,
+    ADD_TRANSACTION_NOTE_TOOL,
+]
+
 WEB_TOOLS = [
     WEB_SEARCH_TOOL,
 ]
@@ -667,6 +898,21 @@ FULL_TOOL_SET = [
     DOWNLOAD_MATTERPORT_ZIP_TOOL,
     UPDATE_MLS_FEEDER_TOOL,
     GET_MLS_FEEDER_TOOL,
+    GET_TRANSACTION_TOOL,
+    UPDATE_TRANSACTION_TOOL,
+    SET_MILESTONE_TOOL,
+    MARK_DOCUMENT_RECEIVED_TOOL,
+    ADD_TRANSACTION_NOTE_TOOL,
+]
+
+# Extraction agent tools (MLS feeder + transaction tracker)
+EXTRACTION_TOOLS = [
+    UPDATE_MLS_FEEDER_TOOL,
+    GET_MLS_FEEDER_TOOL,
+    UPDATE_TRANSACTION_TOOL,
+    SET_MILESTONE_TOOL,
+    MARK_DOCUMENT_RECEIVED_TOOL,
+    ADD_TRANSACTION_NOTE_TOOL,
 ]
 
 
@@ -679,6 +925,8 @@ def get_tools_for_agent(agent_type: str) -> list[dict[str, Any]]:
         "web": WEB_TOOLS,
         "matterport": MATTERPORT_TOOLS,
         "client": CLIENT_TOOLS,
+        "transaction": TRANSACTION_TOOLS,
+        "extraction": EXTRACTION_TOOLS,
         "full": FULL_TOOL_SET,
     }
     return tool_sets.get(agent_type, EMAIL_AGENT_TOOLS)

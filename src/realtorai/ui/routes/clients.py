@@ -782,6 +782,77 @@ async def update_transaction_document(client_id: int, data: DocumentUpdate) -> d
 
 
 # =============================================================================
+# LLM Extraction endpoints
+# =============================================================================
+
+
+class ExtractionRequest(BaseModel):
+    """Request body for data extraction."""
+    content: str
+    content_type: str = "email"  # email, document, p_and_s, inspection_report, etc.
+    subject: str | None = None
+    sender: str | None = None
+
+
+@router.post("/{client_id}/extract")
+async def extract_data(client_id: int, request: ExtractionRequest) -> dict:
+    """Extract structured data from pasted content using LLM.
+
+    Extracts MLS feeder data (for sellers) and transaction tracker data
+    (for both buyer/seller) from emails or documents.
+
+    Args:
+        client_id: Client to update
+        request: Content to extract from
+
+    Returns:
+        Extraction results including what was updated
+    """
+    from realtorai.inference.extraction import (
+        extract_from_email,
+        extract_from_document,
+    )
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Determine representation from transaction type
+    representation = None
+    tx_type = (client.get("transaction_type") or "").lower()
+    if "buy" in tx_type:
+        representation = "buyer"
+    elif "sell" in tx_type:
+        representation = "seller"
+
+    # Route to appropriate extraction function
+    if request.content_type == "email":
+        result = await extract_from_email(
+            client_id=client_id,
+            name=client["name"],
+            email_content=request.content,
+            email_subject=request.subject,
+            sender=request.sender,
+            representation=representation,
+        )
+    else:
+        result = await extract_from_document(
+            client_id=client_id,
+            name=client["name"],
+            document_text=request.content,
+            document_type=request.content_type,
+            representation=representation,
+        )
+
+    return {
+        "success": True,
+        "client_id": client_id,
+        "extraction": result,
+    }
+
+
+# =============================================================================
 # Pending items endpoints
 # =============================================================================
 
