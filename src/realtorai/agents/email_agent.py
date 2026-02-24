@@ -11,9 +11,11 @@ from realtorai.inference.prompts import (
     with_reasoning,
 )
 from realtorai.inference.tools import EMAIL_AGENT_TOOLS
+from realtorai.inference.extraction import extract_from_email
 from realtorai.integrations.graph.email import format_email_for_display, get_email_thread
 from realtorai.schemas.common import ChainOfReasoning, Confidence, ReasoningStep
 from realtorai.schemas.email import DraftResponse, EmailClassification, EmailProposal
+from realtorai.storage.database import get_database
 
 logger = structlog.get_logger()
 
@@ -200,6 +202,9 @@ Walk through your reasoning step by step."""
     async def process_email(self, email: dict[str, Any]) -> EmailProposal:
         """Process an email end-to-end: classify, draft response, generate reasoning.
 
+        Also extracts structured data (MLS feeder, transaction tracker) if the
+        sender is a known client.
+
         Args:
             email: Email object from Graph API
 
@@ -207,6 +212,8 @@ Walk through your reasoning step by step."""
             Complete EmailProposal for the approval queue
         """
         from datetime import datetime
+
+        formatted = format_email_for_display(email)
 
         # Get thread context if this is part of a conversation
         thread_context = None
@@ -232,6 +239,42 @@ Walk through your reasoning step by step."""
 
         # Generate reasoning
         reasoning = await self.generate_reasoning(email, classification, draft)
+
+        # --- Data Extraction ---
+        # Try to extract structured data if sender is a known client
+        extraction_result = None
+        try:
+            db = await get_database()
+            sender_email = formatted.get("from_email")
+            if sender_email:
+                client = await db.find_client_by_email(sender_email)
+                if client:
+                    # Extract MLS feeder and transaction data
+                    representation = None
+                    tx_type = client.get("transaction_type", "").lower()
+                    if "buy" in tx_type:
+                        representation = "buyer"
+                    elif "sell" in tx_type:
+                        representation = "seller"
+
+                    extraction_result = await extract_from_email(
+                        client_id=client["id"],
+                        name=client["name"],
+                        email_content=formatted["body"],
+                        email_subject=formatted.get("subject"),
+                        sender=f"{formatted.get('from_name')} <{sender_email}>",
+                        representation=representation,
+                    )
+
+                    logger.info(
+                        "email_data_extracted",
+                        email_id=email.get("id"),
+                        client_id=client["id"],
+                        data_type=extraction_result.get("classification", {}).get("data_type"),
+                    )
+        except Exception as e:
+            # Extraction failures shouldn't block email processing
+            logger.warning("extraction_failed", error=str(e))
 
         # Determine proposed action
         if draft:
@@ -259,6 +302,7 @@ Walk through your reasoning step by step."""
             "email_processed",
             email_id=email.get("id"),
             proposed_action=proposed_action,
+            data_extracted=extraction_result is not None,
         )
 
         return proposal

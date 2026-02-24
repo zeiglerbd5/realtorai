@@ -471,6 +471,26 @@ class Database:
         rows = await cursor.fetchall()
         return [self._row_to_client(row) for row in rows]
 
+    async def find_client_by_email(self, email: str) -> dict | None:
+        """Find a client by exact email match.
+
+        Used to link incoming emails to existing clients.
+        Returns the first matching client or None.
+        """
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        cursor = await self._connection.execute(
+            """
+            SELECT * FROM clients
+            WHERE LOWER(email) = LOWER(?)
+            LIMIT 1
+            """,
+            (email,),
+        )
+        row = await cursor.fetchone()
+        return self._row_to_client(row) if row else None
+
     def _row_to_client(self, row: aiosqlite.Row) -> dict:
         """Convert database row to client dict."""
         return {

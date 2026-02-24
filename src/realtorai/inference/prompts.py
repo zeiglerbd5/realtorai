@@ -195,3 +195,130 @@ You have access to relevant information from the knowledge base:
 Use this information to provide accurate, well-informed responses when applicable."""
 
     return prompt, context
+
+
+# =============================================================================
+# EXTRACTION PROMPTS - For pulling structured data from emails/documents
+# =============================================================================
+
+# MLS Feeder Extraction - for seller listing data
+MLS_EXTRACTION_PROMPT = f"""{BASE_PERSONA}
+
+You are extracting property listing data from emails and documents to populate an MLS listing.
+This is for SELLER clients who are listing their property.
+
+Look for and extract:
+- Property address (street number, street name, city, state, zip)
+- Property type (Residential, Condo, Townhouse, Land, Multi-Family)
+- Year built
+- Bedrooms and bathrooms (full and half)
+- Square footage (living area and lot size)
+- Garage spaces
+- Listing price
+- Property features (heating, cooling, appliances, interior/exterior features)
+- Showing instructions
+- Marketing descriptions (public remarks for buyers, private agent notes)
+- Virtual tour URLs (Matterport, etc.)
+
+Be precise with numbers. Convert any written numbers to integers.
+Only extract data that is explicitly stated - never make assumptions.
+If a field isn't mentioned, don't include it.
+"""
+
+# Transaction Extraction - for contract-to-close data
+TRANSACTION_EXTRACTION_PROMPT = f"""{BASE_PERSONA}
+
+You are extracting transaction data from emails and documents to track a deal from contract to close.
+This applies to both BUYER and SELLER transactions.
+
+Look for and extract:
+
+KEY DATES (convert to ISO format YYYY-MM-DD):
+- Effective date (when P&S was signed)
+- Inspection deadline
+- EMD (earnest money deposit) due date
+- Loan application deadline
+- Appraisal deadline
+- Closing date
+- Walkthrough date
+- Contingency deadlines (financing, sale of property)
+
+FINANCIAL DETAILS:
+- Purchase price
+- Earnest money deposit amount
+- Loan amount
+- Down payment
+
+CONTACTS (with name, email, phone when available):
+- Other agent (buyer's or listing agent)
+- Lender / loan officer
+- Title company / closing attorney
+- Inspector
+
+MILESTONES (if mentioned as completed):
+- Under contract
+- Inspection scheduled/completed
+- EMD delivered/confirmed
+- Documents uploaded to DTR
+- Title company chosen
+- Clear to close
+- Closing scheduled
+
+DOCUMENTS (if mentioned as received/signed):
+- Purchase & Sale Agreement (P&S)
+- Lead paint addendum
+- Property disclosures
+- Loan application letter
+- Proof of funds
+- Appraisal report
+- Inspection report
+- Closing disclosure
+
+Be precise with dates and numbers.
+Only extract data that is explicitly stated.
+"""
+
+# Combined extraction for processing emails
+EMAIL_EXTRACTION_PROMPT = f"""{BASE_PERSONA}
+
+You are analyzing an email to extract structured data for the real estate database.
+
+First, determine what type of data is in this email:
+1. MLS LISTING DATA - Property details for creating/updating an MLS listing (seller side)
+2. TRANSACTION DATA - Contract dates, contacts, milestones, documents (buyer or seller)
+3. BOTH - Email contains both types of data
+4. NEITHER - Email doesn't contain extractable property/transaction data
+
+Then extract the relevant data using the appropriate tools.
+
+For MLS Listing Data (sellers), look for:
+- Property address, type, year built
+- Bedrooms, bathrooms, square footage
+- Price, features, showing instructions
+- Marketing descriptions
+
+For Transaction Data (buyers and sellers), look for:
+- Key dates: effective date, inspection deadline, closing date, etc.
+- Financial: purchase price, EMD amount, loan details
+- Contacts: other agent, lender, title company, inspector
+- Milestones: what's been completed
+- Documents: what's been received or signed
+
+Use the appropriate tool(s) to save extracted data.
+Only extract what is explicitly stated - never assume or infer values.
+"""
+
+
+def get_mls_extraction_prompt() -> str:
+    """Get the MLS feeder extraction prompt."""
+    return MLS_EXTRACTION_PROMPT
+
+
+def get_transaction_extraction_prompt() -> str:
+    """Get the transaction tracker extraction prompt."""
+    return TRANSACTION_EXTRACTION_PROMPT
+
+
+def get_email_extraction_prompt() -> str:
+    """Get the combined email extraction prompt."""
+    return EMAIL_EXTRACTION_PROMPT

@@ -110,6 +110,9 @@
             <button class="btn btn-secondary" onclick="downloadMatterportTour()">
                 {% if matterport %}Update{% else %}Pull{% endif %} Matterport Tour
             </button>
+            <button class="btn btn-secondary" onclick="openExtractModal()">
+                Extract from Email/Doc
+            </button>
         </div>
 
         <h3>MLS Listing <span id="feeder-unsaved" class="unsaved-badge">unsaved</span></h3>
@@ -500,6 +503,52 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeTransactionModal()">Cancel</button>
             <button class="btn btn-primary" onclick="saveTransactionForm()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Extract Data Modal -->
+<div id="extract-modal" class="feeder-modal" style="display: none;">
+    <div class="feeder-modal-content">
+        <div class="modal-header">
+            <h2>Extract Data from Email/Document</h2>
+            <button class="modal-close" onclick="closeExtractModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: var(--spacing-md); color: var(--text-muted);">
+                Paste email or document content below. The LLM will extract property details,
+                transaction dates, contacts, and other relevant information.
+            </p>
+            <div class="form-group">
+                <label for="extract-type">Content Type</label>
+                <select id="extract-type">
+                    <option value="email">Email</option>
+                    <option value="p_and_s">Purchase & Sale Agreement</option>
+                    <option value="inspection_report">Inspection Report</option>
+                    <option value="appraisal">Appraisal Report</option>
+                    <option value="document">Other Document</option>
+                </select>
+            </div>
+            <div class="form-group" id="email-subject-group">
+                <label for="extract-subject">Subject (optional)</label>
+                <input type="text" id="extract-subject" placeholder="Email subject line">
+            </div>
+            <div class="form-group" id="email-sender-group">
+                <label for="extract-sender">From (optional)</label>
+                <input type="text" id="extract-sender" placeholder="sender@example.com">
+            </div>
+            <div class="form-group">
+                <label for="extract-content">Content</label>
+                <textarea id="extract-content" rows="12" placeholder="Paste email body or document text here..."></textarea>
+            </div>
+            <div id="extract-result" style="display: none;">
+                <h4>Extraction Results</h4>
+                <pre id="extract-result-text"></pre>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeExtractModal()">Close</button>
+            <button class="btn btn-primary" id="extract-btn" onclick="runExtraction()">Extract Data</button>
         </div>
     </div>
 </div>
@@ -1560,6 +1609,133 @@ async function markDocument(document) {
     } catch (error) {
         console.error('Error marking document:', error);
     }
+}
+
+// =============================================================================
+// Extract Data Modal
+// =============================================================================
+
+function openExtractModal() {
+    document.getElementById('extract-modal').style.display = 'flex';
+    document.getElementById('extract-content').value = '';
+    document.getElementById('extract-subject').value = '';
+    document.getElementById('extract-sender').value = '';
+    document.getElementById('extract-result').style.display = 'none';
+    updateExtractFields();
+}
+
+function closeExtractModal() {
+    document.getElementById('extract-modal').style.display = 'none';
+}
+
+function updateExtractFields() {
+    const type = document.getElementById('extract-type').value;
+    const isEmail = type === 'email';
+    document.getElementById('email-subject-group').style.display = isEmail ? 'block' : 'none';
+    document.getElementById('email-sender-group').style.display = isEmail ? 'block' : 'none';
+}
+
+document.getElementById('extract-type')?.addEventListener('change', updateExtractFields);
+
+async function runExtraction() {
+    const content = document.getElementById('extract-content').value.trim();
+    if (!content) {
+        alert('Please paste some content to extract from.');
+        return;
+    }
+
+    const extractBtn = document.getElementById('extract-btn');
+    const originalText = extractBtn.textContent;
+    extractBtn.textContent = 'Extracting...';
+    extractBtn.disabled = true;
+
+    try {
+        const payload = {
+            content: content,
+            content_type: document.getElementById('extract-type').value,
+            subject: document.getElementById('extract-subject').value || null,
+            sender: document.getElementById('extract-sender').value || null
+        };
+
+        const response = await fetch('/clients/{{ client.id }}/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Show results
+            document.getElementById('extract-result').style.display = 'block';
+            document.getElementById('extract-result-text').textContent = formatExtractionResult(result.extraction);
+
+            // Offer to reload if data was extracted
+            const mlsApplied = result.extraction?.mls_extraction?.applied;
+            const txApplied = result.extraction?.transaction_extraction?.applied;
+
+            if (mlsApplied || txApplied) {
+                if (confirm('Data extracted successfully! Reload page to see updates?')) {
+                    location.reload();
+                }
+            }
+        } else {
+            alert('Extraction failed: ' + (result.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        extractBtn.textContent = originalText;
+        extractBtn.disabled = false;
+    }
+}
+
+function formatExtractionResult(extraction) {
+    if (!extraction) return 'No data extracted.';
+
+    let output = [];
+
+    // Classification
+    if (extraction.classification) {
+        output.push(`Classification: ${extraction.classification.data_type}`);
+        if (extraction.classification.summary) {
+            output.push(`Summary: ${extraction.classification.summary}`);
+        }
+        output.push('');
+    }
+
+    // MLS extraction
+    if (extraction.mls_extraction) {
+        const mls = extraction.mls_extraction;
+        if (mls.applied) {
+            output.push('MLS Feeder Updated:');
+            output.push(`  Fields: ${mls.fields_updated?.join(', ') || 'none'}`);
+        } else {
+            output.push(`MLS: ${mls.reason || 'Not applicable'}`);
+        }
+        output.push('');
+    }
+
+    // Transaction extraction
+    if (extraction.transaction_extraction) {
+        const tx = extraction.transaction_extraction;
+        if (tx.applied) {
+            output.push('Transaction Tracker Updated:');
+            if (tx.fields_updated?.length) {
+                output.push(`  Fields: ${tx.fields_updated.join(', ')}`);
+            }
+            if (tx.milestones_set?.length) {
+                output.push(`  Milestones: ${tx.milestones_set.join(', ')}`);
+            }
+            if (tx.documents_marked?.length) {
+                output.push(`  Documents: ${tx.documents_marked.join(', ')}`);
+            }
+        } else {
+            output.push(`Transaction: ${tx.reason || 'Not applicable'}`);
+        }
+    }
+
+    return output.join('\n') || 'No changes made.';
 }
 </script>
 {% endblock %}
