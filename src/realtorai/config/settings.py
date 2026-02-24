@@ -59,6 +59,10 @@ class Settings(BaseSettings):
         default="",
         description="Spark API client secret",
     )
+    spark_demo_token: str = Field(
+        default="",
+        description="Spark API demo access token for testing with example data",
+    )
 
     # -------------------------------------------------------------------------
     # DocuSign Rooms API
