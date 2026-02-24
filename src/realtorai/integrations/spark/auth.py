@@ -49,13 +49,29 @@ class SparkAuth(Integration):
 
     async def is_configured(self) -> bool:
         """Check if Spark API credentials are configured."""
-        return bool(
+        # Either full OAuth creds or demo token works
+        has_oauth = bool(
             getattr(self.settings, 'spark_client_id', None) and
             getattr(self.settings, 'spark_client_secret', None)
+        )
+        has_demo = bool(getattr(self.settings, 'spark_demo_token', None))
+        return has_oauth or has_demo
+
+    @property
+    def is_demo_mode(self) -> bool:
+        """True if using demo token (no OAuth creds configured)."""
+        return (
+            not (self.settings.spark_client_id and self.settings.spark_client_secret)
+            and bool(self.settings.spark_demo_token)
         )
 
     async def is_connected(self) -> bool:
         """Check if we have a valid access token."""
+        # Demo token is always "connected"
+        if self.is_demo_mode:
+            self._access_token = self.settings.spark_demo_token
+            return True
+
         if not self._access_token:
             await self._load_tokens()
 

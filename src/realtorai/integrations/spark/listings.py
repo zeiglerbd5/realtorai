@@ -164,10 +164,11 @@ async def find_comps(
     if listing_id:
         source = await get_listing(listing_id)
         if source:
-            price = price or source.get("ListPrice")
-            beds = beds or source.get("BedroomsTotal")
-            sqft = sqft or source.get("LivingArea")
-            city = city or source.get("City")
+            sf = _get_fields(source)
+            price = price or sf.get("ListPrice")
+            beds = beds or sf.get("BedsTotal")
+            sqft = sqft or sf.get("BuildingAreaTotal")
+            city = city or sf.get("City")
 
     # Build comp search filters (SparkQL)
     filters = ["MlsStatus Eq 'Closed'"]
@@ -258,8 +259,8 @@ async def get_market_stats(
         sold = []
 
     # Calculate stats
-    active_prices = [l.get("ListPrice", 0) for l in active if l.get("ListPrice")]
-    sold_prices = [l.get("ClosePrice", 0) for l in sold if l.get("ClosePrice")]
+    active_prices = [_get_fields(l).get("ListPrice", 0) for l in active if _get_fields(l).get("ListPrice")]
+    sold_prices = [_get_fields(l).get("ClosePrice", 0) for l in sold if _get_fields(l).get("ClosePrice")]
 
     stats = {
         "active_count": len(active),
@@ -274,6 +275,11 @@ async def get_market_stats(
     return stats
 
 
+def _get_fields(listing: dict[str, Any]) -> dict[str, Any]:
+    """Extract StandardFields from a listing, handling nested or flat format."""
+    return listing.get("StandardFields", listing)
+
+
 def format_listing_summary(listing: dict[str, Any]) -> str:
     """Format a listing as a human-readable summary.
 
@@ -283,16 +289,23 @@ def format_listing_summary(listing: dict[str, Any]) -> str:
     Returns:
         Formatted string summary
     """
-    address = listing.get("UnparsedAddress", "Unknown address")
-    city = listing.get("City", "")
-    price = listing.get("ListPrice", 0)
-    beds = listing.get("BedroomsTotal", 0)
-    baths = listing.get("BathroomsTotalInteger", 0)
-    sqft = listing.get("LivingArea", 0)
-    status = listing.get("StandardStatus", "Unknown")
+    f = _get_fields(listing)
+    address = f.get("UnparsedAddress") or f.get("UnparsedFirstLineAddress") or "Unknown address"
+    city = f.get("City", "")
+    price = f.get("ListPrice", 0) or 0
+    beds = f.get("BedsTotal", 0) or 0
+    baths = f.get("BathsFull", 0) or 0
+    baths_half = f.get("BathsHalf", 0) or 0
+    sqft = f.get("BuildingAreaTotal", 0) or 0
+    status = f.get("StandardStatus") or f.get("MlsStatus") or "Unknown"
+    year = f.get("YearBuilt", "")
+
+    bath_str = f"{baths} bath" + (f" + {baths_half} half" if baths_half else "")
+    sqft_str = f"{int(sqft):,} sqft" if sqft else "sqft N/A"
+    year_str = f" | Built {year}" if year else ""
 
     return (
         f"{address}, {city}\n"
-        f"${price:,} | {beds} bed, {baths} bath | {sqft:,} sqft\n"
+        f"${price:,.0f} | {beds} bed, {bath_str} | {sqft_str}{year_str}\n"
         f"Status: {status}"
     )

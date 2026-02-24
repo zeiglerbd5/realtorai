@@ -50,13 +50,14 @@ async def check_status():
         print("\nMissing credentials. Set these in .env:")
         print("  SPARK_CLIENT_ID=your_client_id")
         print("  SPARK_CLIENT_SECRET=your_client_secret")
+        print("  (or SPARK_DEMO_TOKEN for testing with example data)")
         print("\nGet credentials at: https://sparkplatform.com/")
-        print("\nSteps to get API access:")
-        print("  1. Register at sparkplatform.com (free)")
-        print("  2. Get demo credentials (3 business days)")
-        print("  3. For live data: Datamart -> Search MLS -> Purchase with Approval")
-        print("  4. Cost: $50/month per MLS")
         return
+
+    if spark_auth.is_demo_mode:
+        print("Mode: DEMO (example data only)")
+    else:
+        print("Mode: LIVE (OAuth)")
 
     connected = await spark_auth.is_connected()
     print(f"Connected: {connected}")
