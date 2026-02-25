@@ -1200,3 +1200,207 @@ a:hover {
     border-radius: var(--radius-sm);
     font-family: monospace;
 }
+
+/* =============================================================================
+   Extraction Task Styles
+   ============================================================================= */
+
+.extraction-details {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Source Citation */
+.source-citation {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.source-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+}
+
+.source-subject {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.source-from {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.source-snippet {
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-left: 3px solid var(--accent-blue);
+    background: var(--bg-tertiary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    white-space: pre-wrap;
+}
+
+/* Diff Table */
+.diff-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.diff-table th {
+    text-align: left;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.diff-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.diff-table .field-name {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.diff-table .current-value {
+    color: var(--text-muted);
+}
+
+.diff-table .arrow {
+    text-align: center;
+    color: var(--accent-blue);
+    font-weight: bold;
+    width: 30px;
+}
+
+.diff-table .proposed-value {
+    color: var(--accent-green);
+    font-weight: 500;
+}
+
+/* Milestones & Documents sections */
+.milestones-section,
+.documents-section {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.milestones-section h4,
+.documents-section h4 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.milestone-list,
+.document-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.milestone-list li,
+.document-list li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.milestone-list li::before {
+    content: '•';
+    color: var(--accent-green);
+    margin-right: var(--spacing-sm);
+}
+
+.document-list li::before {
+    content: '📄';
+    margin-right: var(--spacing-sm);
+}
+
+/* Task type badges for extraction */
+.task-type.extraction_mls {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green);
+}
+
+.task-type.extraction_transaction {
+    background: rgba(234, 179, 8, 0.15);
+    color: var(--accent-yellow);
+}
+
+/* Edit form specific styles */
+.edit-changes-section,
+.edit-milestones-section,
+.edit-documents-section {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.edit-changes-section h4,
+.edit-milestones-section h4,
+.edit-documents-section h4 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.edit-change-row {
+    margin-bottom: var(--spacing-sm);
+}
+
+.edit-change-row label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.current-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) 0;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-blue);
+}
+
+.checkbox-row label {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}

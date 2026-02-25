@@ -168,6 +168,8 @@ class ApprovalLoop:
             await self._execute_email_response(task)
         elif task.task_type == TaskType.CALENDAR_EVENT:
             await self._execute_calendar_event(task)
+        elif task.task_type in (TaskType.EXTRACTION_MLS, TaskType.EXTRACTION_TRANSACTION):
+            await self._execute_extraction(task)
         else:
             logger.warning("unknown_task_type", task_type=task.task_type.value)
 
@@ -196,6 +198,74 @@ class ApprovalLoop:
         """Execute a calendar event task."""
         # TODO: Implement calendar event creation
         logger.warning("calendar_event_not_implemented", task_id=task.id)
+
+    async def _execute_extraction(self, task: Task) -> None:
+        """Execute an extraction task (MLS or Transaction)."""
+        from realtorai.inference.extraction import (
+            apply_mls_extraction,
+            apply_transaction_extraction,
+            MLSExtraction,
+            TransactionExtraction,
+        )
+        from realtorai.transactions import set_milestone, mark_document_received
+
+        proposal = task.proposal_data
+        details = task.details
+        extraction_type = proposal.get("extraction_type")
+        raw_extraction = proposal.get("raw_extraction", {})
+        client_id = details.get("client_id")
+        client_name = details.get("client_name")
+
+        if not client_id or not client_name:
+            raise ValueError("Missing client_id or client_name in task details")
+
+        if extraction_type == "mls":
+            # Apply MLS extraction
+            mls_extraction = MLSExtraction(**raw_extraction)
+            result = await apply_mls_extraction(
+                client_id=client_id,
+                name=client_name,
+                extraction=mls_extraction,
+                source="approval_queue",
+            )
+            logger.info(
+                "mls_extraction_applied",
+                task_id=task.id,
+                client_id=client_id,
+                result=result,
+            )
+
+        elif extraction_type == "transaction":
+            # Apply transaction extraction
+            tx_extraction = TransactionExtraction(**raw_extraction)
+            result = await apply_transaction_extraction(
+                client_id=client_id,
+                name=client_name,
+                extraction=tx_extraction,
+                source="approval_queue",
+            )
+
+            # Set additional milestones from proposal
+            milestones = proposal.get("milestones_to_set", [])
+            for milestone in milestones:
+                set_milestone(client_id, client_name, milestone)
+
+            # Mark additional documents from proposal
+            documents = proposal.get("documents_to_mark", [])
+            for doc in documents:
+                mark_document_received(client_id, client_name, doc)
+
+            logger.info(
+                "transaction_extraction_applied",
+                task_id=task.id,
+                client_id=client_id,
+                result=result,
+                milestones=milestones,
+                documents=documents,
+            )
+
+        else:
+            raise ValueError(f"Unknown extraction type: {extraction_type}")
 
 
 # Default instance

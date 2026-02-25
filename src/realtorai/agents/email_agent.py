@@ -11,7 +11,8 @@ from realtorai.inference.prompts import (
     with_reasoning,
 )
 from realtorai.inference.tools import EMAIL_AGENT_TOOLS
-from realtorai.inference.extraction import extract_from_email
+from realtorai.inference.extraction import create_extraction_proposals
+from realtorai.orchestration.queue import task_queue
 from realtorai.integrations.graph.email import format_email_for_display, get_email_thread
 from realtorai.schemas.common import ChainOfReasoning, Confidence, ReasoningStep
 from realtorai.schemas.email import DraftResponse, EmailClassification, EmailProposal
@@ -240,16 +241,17 @@ Walk through your reasoning step by step."""
         # Generate reasoning
         reasoning = await self.generate_reasoning(email, classification, draft)
 
-        # --- Data Extraction ---
+        # --- Data Extraction (Queued for Approval) ---
         # Try to extract structured data if sender is a known client
-        extraction_result = None
+        # Instead of auto-applying, create proposals for the approval queue
+        extraction_proposals = []
         try:
             db = await get_database()
             sender_email = formatted.get("from_email")
             if sender_email:
                 client = await db.find_client_by_email(sender_email)
                 if client:
-                    # Extract MLS feeder and transaction data
+                    # Determine representation
                     representation = None
                     tx_type = client.get("transaction_type", "").lower()
                     if "buy" in tx_type:
@@ -257,7 +259,8 @@ Walk through your reasoning step by step."""
                     elif "sell" in tx_type:
                         representation = "seller"
 
-                    extraction_result = await extract_from_email(
+                    # Create extraction proposals (does NOT apply data)
+                    proposals = await create_extraction_proposals(
                         client_id=client["id"],
                         name=client["name"],
                         email_content=formatted["body"],
@@ -266,12 +269,25 @@ Walk through your reasoning step by step."""
                         representation=representation,
                     )
 
-                    logger.info(
-                        "email_data_extracted",
-                        email_id=email.get("id"),
-                        client_id=client["id"],
-                        data_type=extraction_result.get("classification", {}).get("data_type"),
-                    )
+                    # Queue each proposal for approval
+                    for proposal in proposals:
+                        task_id = await task_queue.add_extraction_task(
+                            proposal=proposal,
+                            email_id=email.get("id"),
+                        )
+                        extraction_proposals.append({
+                            "task_id": task_id,
+                            "type": proposal.extraction_type.value,
+                            "changes": len(proposal.changes),
+                        })
+
+                    if proposals:
+                        logger.info(
+                            "extraction_proposals_queued",
+                            email_id=email.get("id"),
+                            client_id=client["id"],
+                            proposal_count=len(proposals),
+                        )
         except Exception as e:
             # Extraction failures shouldn't block email processing
             logger.warning("extraction_failed", error=str(e))
@@ -302,7 +318,7 @@ Walk through your reasoning step by step."""
             "email_processed",
             email_id=email.get("id"),
             proposed_action=proposed_action,
-            data_extracted=extraction_result is not None,
+            extraction_proposals_queued=len(extraction_proposals),
         )
 
         return proposal

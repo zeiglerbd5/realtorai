@@ -8,6 +8,11 @@ from realtorai.schemas.email import (
     EmailPriority,
     EmailProposal,
 )
+from realtorai.schemas.extraction import (
+    ExtractionProposal,
+    ExtractionType,
+    FieldChange,
+)
 from realtorai.schemas.tasks import ApprovalAction, ApprovalStatus, Task, TaskType
 
 __all__ = [
@@ -20,6 +25,10 @@ __all__ = [
     "EmailPriority",
     "DraftResponse",
     "EmailProposal",
+    # Extraction
+    "ExtractionProposal",
+    "ExtractionType",
+    "FieldChange",
     # Tasks
     "Task",
     "TaskType",
