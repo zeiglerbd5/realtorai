@@ -17,6 +17,8 @@ class TaskType(str, Enum):
     LISTING_ALERT = "listing_alert"
     FOLLOWUP_REMINDER = "followup_reminder"
     TRANSACTION_UPDATE = "transaction_update"
+    EXTRACTION_MLS = "extraction_mls"
+    EXTRACTION_TRANSACTION = "extraction_transaction"
     CUSTOM = "custom"
 
 

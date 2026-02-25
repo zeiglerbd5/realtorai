@@ -1,0 +1,116 @@
+<div class="task-card editing" data-task-id="{{ task.id }}">
+    <form hx-post="/actions/{{ task.id }}/edit-extraction"
+          hx-swap="outerHTML"
+          hx-target="closest .task-card">
+
+        <div class="task-header">
+            <span class="task-type {{ task.task_type.value }}">
+                {{ task.task_type.value | replace('_', ' ') | title }}
+            </span>
+            <span class="editing-badge">Editing</span>
+        </div>
+
+        <h3 class="task-title">{{ task.title }}</h3>
+
+        {# Source citation (read-only) #}
+        {% if task.details.get('source_email_subject') or task.details.get('source_email_from') %}
+        <div class="source-citation">
+            <div class="source-header">
+                {% if task.details.get('source_email_subject') %}
+                <span class="source-subject">{{ task.details.source_email_subject }}</span>
+                {% endif %}
+                {% if task.details.get('source_email_from') %}
+                <span class="source-from">From: {{ task.details.source_email_from }}</span>
+                {% endif %}
+            </div>
+            {% if task.details.get('source_snippet') %}
+            <blockquote class="source-snippet">{{ task.details.source_snippet }}</blockquote>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# Editable field changes #}
+        <div class="edit-changes-section">
+            <h4>Field Updates</h4>
+            {% for change in task.details.get('changes', []) %}
+            <div class="form-group edit-change-row">
+                <label for="change_{{ loop.index0 }}">
+                    {{ change.field_path }}
+                    {% if change.current_value is not none %}
+                    <span class="current-hint">(current: {{ change.current_value }})</span>
+                    {% endif %}
+                </label>
+                <input type="text"
+                       id="change_{{ loop.index0 }}"
+                       name="change_{{ loop.index0 }}"
+                       value="{{ change.proposed_value }}"
+                       class="form-input"
+                       data-field-path="{{ change.field_path }}">
+                <input type="hidden"
+                       name="field_path_{{ loop.index0 }}"
+                       value="{{ change.field_path }}">
+            </div>
+            {% endfor %}
+        </div>
+
+        {# Milestones checkboxes #}
+        {% if task.details.get('milestones_to_set') %}
+        <div class="edit-milestones-section">
+            <h4>Milestones to Set</h4>
+            {% for milestone in task.details.milestones_to_set %}
+            <div class="checkbox-row">
+                <input type="checkbox"
+                       id="milestone_{{ loop.index0 }}"
+                       name="milestone_{{ loop.index0 }}"
+                       value="{{ milestone }}"
+                       checked>
+                <label for="milestone_{{ loop.index0 }}">
+                    {{ milestone | replace('_', ' ') | title }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Documents checkboxes #}
+        {% if task.details.get('documents_to_mark') %}
+        <div class="edit-documents-section">
+            <h4>Documents to Mark Received</h4>
+            {% for doc in task.details.documents_to_mark %}
+            <div class="checkbox-row">
+                <input type="checkbox"
+                       id="document_{{ loop.index0 }}"
+                       name="document_{{ loop.index0 }}"
+                       value="{{ doc }}"
+                       checked>
+                <label for="document_{{ loop.index0 }}">
+                    {{ doc | replace('_', ' ') | title }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="notes">Notes (optional)</label>
+            <textarea id="notes"
+                      name="notes"
+                      rows="2"
+                      placeholder="Add any notes about your edits..."
+                      class="form-textarea"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                Save & Apply
+            </button>
+            <button type="button"
+                    class="btn btn-secondary"
+                    hx-get="/actions/{{ task.id }}/detail"
+                    hx-swap="outerHTML"
+                    hx-target="closest .task-card">
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>

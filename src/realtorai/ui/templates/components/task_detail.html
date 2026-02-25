@@ -50,6 +50,78 @@
     </div>
     {% endif %}
 
+    {# Extraction task display #}
+    {% if task.task_type.value in ('extraction_mls', 'extraction_transaction') %}
+    <div class="extraction-details">
+        {# Source citation #}
+        {% if task.details.get('source_email_subject') or task.details.get('source_email_from') %}
+        <div class="source-citation">
+            <div class="source-header">
+                {% if task.details.get('source_email_subject') %}
+                <span class="source-subject">{{ task.details.source_email_subject }}</span>
+                {% endif %}
+                {% if task.details.get('source_email_from') %}
+                <span class="source-from">From: {{ task.details.source_email_from }}</span>
+                {% endif %}
+            </div>
+            {% if task.details.get('source_snippet') %}
+            <blockquote class="source-snippet">{{ task.details.source_snippet }}</blockquote>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# Diff table #}
+        {% if task.details.get('changes') %}
+        <div class="diff-section">
+            <table class="diff-table">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Current</th>
+                        <th></th>
+                        <th>Proposed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for change in task.details.changes %}
+                    <tr>
+                        <td class="field-name">{{ change.field_path }}</td>
+                        <td class="current-value">{{ change.current_value if change.current_value is not none else '(empty)' }}</td>
+                        <td class="arrow">→</td>
+                        <td class="proposed-value">{{ change.proposed_value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {# Milestones to set (transaction only) #}
+        {% if task.details.get('milestones_to_set') %}
+        <div class="milestones-section">
+            <h4>Milestones to mark complete:</h4>
+            <ul class="milestone-list">
+                {% for milestone in task.details.milestones_to_set %}
+                <li>{{ milestone | replace('_', ' ') | title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {# Documents to mark (transaction only) #}
+        {% if task.details.get('documents_to_mark') %}
+        <div class="documents-section">
+            <h4>Documents to mark received:</h4>
+            <ul class="document-list">
+                {% for doc in task.details.documents_to_mark %}
+                <li>{{ doc | replace('_', ' ') | title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="task-actions">
         <button class="btn btn-approve"
                 hx-post="/actions/{{ task.id }}/approve"

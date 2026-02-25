@@ -5,6 +5,7 @@ Extracts structured data from unstructured content and populates:
 - Transaction tracker (for buyer/seller deals)
 """
 
+import re
 from typing import Any
 
 import structlog
@@ -17,8 +18,10 @@ from realtorai.inference.prompts import (
     get_transaction_extraction_prompt,
 )
 from realtorai.inference.tools import EXTRACTION_TOOLS
-from realtorai.integrations.spark.mls_feeder import update_mls_feeder
+from realtorai.integrations.spark.mls_feeder import get_mls_feeder, update_mls_feeder
+from realtorai.schemas.extraction import ExtractionProposal, ExtractionType, FieldChange
 from realtorai.transactions import (
+    get_transaction,
     update_transaction,
     set_milestone,
     mark_document_received,
@@ -527,6 +530,311 @@ async def extract_from_document(
         email_content=document_text,
         representation=representation,
     )
+
+
+def _get_nested_value(data: dict[str, Any] | None, path: str) -> Any:
+    """Get a value from a nested dict using dot notation."""
+    if data is None:
+        return None
+    keys = path.split(".")
+    current = data
+    for key in keys:
+        if isinstance(current, dict):
+            current = current.get(key)
+        else:
+            return None
+    return current
+
+
+def _extract_source_snippet(content: str, extraction: dict[str, Any], max_length: int = 300) -> str:
+    """Extract a relevant snippet from content that supports the extraction.
+
+    Looks for sentences containing key extracted values.
+    """
+    if not content:
+        return ""
+
+    # Flatten extraction to get all values
+    def flatten_values(d: dict, values: list) -> list:
+        for v in d.values():
+            if isinstance(v, dict):
+                flatten_values(v, values)
+            elif isinstance(v, list):
+                values.extend([str(x) for x in v if x])
+            elif v is not None:
+                values.append(str(v))
+        return values
+
+    search_values = flatten_values(extraction, [])
+
+    # Filter to meaningful values (skip bools, very short strings)
+    search_values = [v for v in search_values if len(v) > 3 and v.lower() not in ("true", "false")]
+
+    if not search_values:
+        return content[:max_length]
+
+    # Find sentences containing extracted values
+    sentences = re.split(r'[.!?\n]+', content)
+    best_sentence = ""
+    best_score = 0
+
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if len(sentence) < 20:
+            continue
+        score = sum(1 for v in search_values if v.lower() in sentence.lower())
+        if score > best_score:
+            best_score = score
+            best_sentence = sentence
+
+    if best_sentence:
+        return best_sentence[:max_length]
+    return content[:max_length]
+
+
+def compute_mls_diff(
+    client_id: int,
+    name: str,
+    extraction: MLSExtraction,
+    content: str = "",
+) -> list[FieldChange]:
+    """Compute diff between current MLS feeder and proposed extraction.
+
+    Args:
+        client_id: Client database ID
+        name: Client name
+        extraction: MLS extraction result
+        content: Original content for snippet extraction
+
+    Returns:
+        List of FieldChange objects representing the diff
+    """
+    current_feeder = get_mls_feeder(client_id, name)
+    changes = []
+
+    # Build flat dict of proposed updates
+    proposed = {}
+    if extraction.address:
+        for field, value in extraction.address.model_dump(exclude_none=True).items():
+            proposed[f"address.{field}"] = value
+    if extraction.property:
+        for field, value in extraction.property.model_dump(exclude_none=True).items():
+            proposed[f"property.{field}"] = value
+    if extraction.listing:
+        for field, value in extraction.listing.model_dump(exclude_none=True).items():
+            proposed[f"listing.{field}"] = value
+    if extraction.marketing:
+        for field, value in extraction.marketing.model_dump(exclude_none=True).items():
+            proposed[f"marketing.{field}"] = value
+    if extraction.features:
+        for field, value in extraction.features.model_dump(exclude_none=True).items():
+            if value:  # Skip empty lists
+                proposed[f"features.{field}"] = value
+
+    # Compare with current values
+    for field_path, proposed_value in proposed.items():
+        current_value = _get_nested_value(current_feeder, field_path)
+        if current_value != proposed_value:
+            # Extract snippet supporting this value
+            snippet = ""
+            if isinstance(proposed_value, str):
+                snippet = _extract_source_snippet(content, {field_path: proposed_value}, max_length=150)
+            elif isinstance(proposed_value, (int, float)):
+                snippet = _extract_source_snippet(content, {field_path: str(proposed_value)}, max_length=150)
+
+            changes.append(FieldChange(
+                field_path=field_path,
+                current_value=current_value,
+                proposed_value=proposed_value,
+                source_snippet=snippet,
+            ))
+
+    return changes
+
+
+def compute_transaction_diff(
+    client_id: int,
+    name: str,
+    extraction: TransactionExtraction,
+    content: str = "",
+) -> tuple[list[FieldChange], list[str], list[str]]:
+    """Compute diff between current transaction and proposed extraction.
+
+    Args:
+        client_id: Client database ID
+        name: Client name
+        extraction: Transaction extraction result
+        content: Original content for snippet extraction
+
+    Returns:
+        Tuple of (changes, milestones_to_set, documents_to_mark)
+    """
+    current_tx = get_transaction(client_id, name)
+    changes = []
+    milestones_to_set = []
+    documents_to_mark = []
+
+    # Build flat dict of proposed updates
+    proposed = {}
+    if extraction.property_address:
+        proposed["property.address"] = extraction.property_address
+    if extraction.dates:
+        for field, value in extraction.dates.model_dump(exclude_none=True).items():
+            proposed[f"dates.{field}"] = value
+    if extraction.financial:
+        for field, value in extraction.financial.model_dump(exclude_none=True).items():
+            proposed[f"financial.{field}"] = value
+    if extraction.contacts:
+        contacts_dict = extraction.contacts.model_dump(exclude_none=True)
+        for contact_type, contact_data in contacts_dict.items():
+            if contact_data and any(contact_data.values()):
+                for field, value in contact_data.items():
+                    if value:
+                        proposed[f"contacts.{contact_type}.{field}"] = value
+
+    # Compare with current values
+    for field_path, proposed_value in proposed.items():
+        current_value = _get_nested_value(current_tx, field_path)
+        if current_value != proposed_value:
+            snippet = ""
+            if isinstance(proposed_value, str):
+                snippet = _extract_source_snippet(content, {field_path: proposed_value}, max_length=150)
+
+            changes.append(FieldChange(
+                field_path=field_path,
+                current_value=current_value,
+                proposed_value=proposed_value,
+                source_snippet=snippet,
+            ))
+
+    # Collect milestones to set
+    if extraction.milestones:
+        for milestone, completed in extraction.milestones.model_dump().items():
+            if completed:
+                # Check if not already set
+                if current_tx:
+                    current_completed = _get_nested_value(
+                        current_tx, f"milestones.{milestone}.completed"
+                    ) or _get_nested_value(
+                        current_tx, f"buyer_milestones.{milestone}.completed"
+                    ) or _get_nested_value(
+                        current_tx, f"seller_milestones.{milestone}.completed"
+                    )
+                    if not current_completed:
+                        milestones_to_set.append(milestone)
+                else:
+                    milestones_to_set.append(milestone)
+
+    # Collect documents to mark
+    if extraction.documents:
+        for doc, received in extraction.documents.model_dump().items():
+            if received:
+                # Check if not already marked
+                if current_tx:
+                    current_received = _get_nested_value(current_tx, f"documents.{doc}.received")
+                    if not current_received:
+                        documents_to_mark.append(doc)
+                else:
+                    documents_to_mark.append(doc)
+
+    return changes, milestones_to_set, documents_to_mark
+
+
+async def create_extraction_proposals(
+    client_id: int,
+    name: str,
+    email_content: str,
+    email_subject: str | None = None,
+    sender: str | None = None,
+    representation: str | None = None,
+) -> list[ExtractionProposal]:
+    """Create extraction proposals for queuing (does NOT apply data).
+
+    This replaces the auto-apply behavior with a proposal workflow.
+
+    Args:
+        client_id: Client database ID
+        name: Client name
+        email_content: Full email body
+        email_subject: Optional email subject
+        sender: Optional sender info
+        representation: buyer or seller
+
+    Returns:
+        List of ExtractionProposal objects to be queued for approval
+    """
+    proposals = []
+
+    # Build full content for analysis
+    full_content = ""
+    if email_subject:
+        full_content += f"Subject: {email_subject}\n"
+    if sender:
+        full_content += f"From: {sender}\n"
+    full_content += f"\n{email_content}"
+
+    # Classify what type of data is present
+    classification = await classify_email_content(full_content)
+
+    if classification.data_type == "neither":
+        return []
+
+    # Extract source snippet for the overall proposal
+    source_snippet = _extract_source_snippet(
+        email_content,
+        {"subject": email_subject or "", "sender": sender or ""},
+        max_length=300
+    )
+
+    # Extract and compute diff for MLS data
+    if classification.data_type in ("mls", "both"):
+        if representation != "buyer":  # Only for sellers
+            mls_extraction = await extract_mls_data(full_content)
+            if mls_extraction.has_data:
+                changes = compute_mls_diff(client_id, name, mls_extraction, email_content)
+                if changes:
+                    proposals.append(ExtractionProposal(
+                        extraction_type=ExtractionType.MLS,
+                        client_id=client_id,
+                        client_name=name,
+                        source_email_subject=email_subject,
+                        source_email_from=sender,
+                        source_snippet=source_snippet,
+                        changes=changes,
+                        raw_extraction=mls_extraction.model_dump(),
+                        confidence=classification.confidence,
+                    ))
+
+    # Extract and compute diff for transaction data
+    if classification.data_type in ("transaction", "both"):
+        tx_extraction = await extract_transaction_data(full_content)
+        if tx_extraction.has_data:
+            changes, milestones, documents = compute_transaction_diff(
+                client_id, name, tx_extraction, email_content
+            )
+            if changes or milestones or documents:
+                proposals.append(ExtractionProposal(
+                    extraction_type=ExtractionType.TRANSACTION,
+                    client_id=client_id,
+                    client_name=name,
+                    source_email_subject=email_subject,
+                    source_email_from=sender,
+                    source_snippet=source_snippet,
+                    changes=changes,
+                    raw_extraction=tx_extraction.model_dump(),
+                    confidence=classification.confidence,
+                    milestones_to_set=milestones,
+                    documents_to_mark=documents,
+                ))
+
+    logger.info(
+        "extraction_proposals_created",
+        client_id=client_id,
+        proposal_count=len(proposals),
+        types=[p.extraction_type.value for p in proposals],
+    )
+
+    return proposals
 
 
 async def process_with_tools(

@@ -6,6 +6,7 @@ from typing import Any
 
 import structlog
 
+from realtorai.schemas.extraction import ExtractionProposal, ExtractionType
 from realtorai.schemas.tasks import ApprovalStatus, Task, TaskType
 from realtorai.storage.database import get_database
 
@@ -66,6 +67,79 @@ class TaskQueue:
         await db.mark_email_processed(email_id, None, task_id)
 
         logger.info("email_task_added", task_id=task_id, email_id=email_id)
+        return task_id
+
+    async def add_extraction_task(
+        self,
+        proposal: ExtractionProposal,
+        email_id: str | None = None,
+    ) -> str:
+        """Add an extraction proposal task to the queue.
+
+        Args:
+            proposal: ExtractionProposal with diff and source info
+            email_id: Optional related email ID
+
+        Returns:
+            Task ID
+        """
+        db = await get_database()
+
+        task_id = self.generate_id()
+
+        # Determine task type
+        if proposal.extraction_type == ExtractionType.MLS:
+            task_type = TaskType.EXTRACTION_MLS
+        else:
+            task_type = TaskType.EXTRACTION_TRANSACTION
+
+        title = proposal.get_title()
+        summary = proposal.get_summary()
+
+        # Build details with source citation
+        details = {
+            "client_id": proposal.client_id,
+            "client_name": proposal.client_name,
+            "source_email_subject": proposal.source_email_subject,
+            "source_email_from": proposal.source_email_from,
+            "source_snippet": proposal.source_snippet,
+            "changes": [c.model_dump() for c in proposal.changes],
+            "milestones_to_set": proposal.milestones_to_set,
+            "documents_to_mark": proposal.documents_to_mark,
+        }
+
+        # Proposal data for execution
+        proposal_data = {
+            "extraction_type": proposal.extraction_type.value,
+            "raw_extraction": proposal.raw_extraction,
+            "changes": [c.model_dump() for c in proposal.changes],
+            "milestones_to_set": proposal.milestones_to_set,
+            "documents_to_mark": proposal.documents_to_mark,
+        }
+
+        await db.create_task(
+            task_id=task_id,
+            task_type=task_type.value,
+            title=title,
+            summary=summary,
+            details=details,
+            proposal_data=proposal_data,
+            confidence=proposal.confidence,
+            related_email_id=email_id,
+        )
+
+        # Mark email as processed if provided
+        if email_id:
+            await db.mark_email_processed(email_id, None, task_id)
+
+        logger.info(
+            "extraction_task_added",
+            task_id=task_id,
+            extraction_type=proposal.extraction_type.value,
+            client_id=proposal.client_id,
+            change_count=len(proposal.changes),
+        )
+
         return task_id
 
     async def add_custom_task(
