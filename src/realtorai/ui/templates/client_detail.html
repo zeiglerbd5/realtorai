@@ -113,6 +113,11 @@
             <button class="btn btn-secondary" onclick="openExtractModal()">
                 Extract from Email/Doc
             </button>
+            <button class="btn btn-danger"
+                    hx-post="/clients/{{ client.id }}/archive"
+                    hx-confirm="Archive this client? They will be hidden from lists.">
+                Archive Client
+            </button>
         </div>
 
         <h3>MLS Listing <span id="feeder-unsaved" class="unsaved-badge">unsaved</span></h3>
