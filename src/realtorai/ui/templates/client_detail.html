@@ -113,6 +113,11 @@
             <button class="btn btn-secondary" onclick="openExtractModal()">
                 Extract from Email/Doc
             </button>
+            {% if client.transaction_type and 'buy' in client.transaction_type.lower() %}
+            <button class="btn btn-primary" onclick="openBuyerAgreementModal()">
+                Generate Buyer Agreement
+            </button>
+            {% endif %}
             <button class="btn btn-danger"
                     hx-post="/clients/{{ client.id }}/archive"
                     hx-confirm="Archive this client? They will be hidden from lists.">
@@ -554,6 +559,87 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeExtractModal()">Close</button>
             <button class="btn btn-primary" id="extract-btn" onclick="runExtraction()">Extract Data</button>
+        </div>
+    </div>
+</div>
+
+<!-- Buyer Agency Agreement Modal -->
+<div id="buyer-agreement-modal" class="feeder-modal" style="display: none;">
+    <div class="feeder-modal-content">
+        <div class="modal-header">
+            <h2>Generate Buyer Agency Agreement</h2>
+            <button class="modal-close" onclick="closeBuyerAgreementModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: var(--spacing-md); color: var(--text-muted);">
+                Fill in the property search criteria for {{ client.name }}. The agreement will be generated and saved to their documents folder.
+            </p>
+            <div class="form-section">
+                <h3>Property Criteria</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ba-property-type">Property Type</label>
+                        <select id="ba-property-type">
+                            <option value="Single Family Home">Single Family Home</option>
+                            <option value="Condominium">Condominium</option>
+                            <option value="Townhouse">Townhouse</option>
+                            <option value="Multi-Family">Multi-Family</option>
+                            <option value="Land">Land</option>
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label for="ba-locations">Target Locations</label>
+                        <input type="text" id="ba-locations" placeholder="Portland, South Portland, Scarborough">
+                    </div>
+                    <div class="form-group">
+                        <label for="ba-min-price">Min Price ($)</label>
+                        <input type="number" id="ba-min-price" placeholder="300000">
+                    </div>
+                    <div class="form-group">
+                        <label for="ba-max-price">Max Price ($)</label>
+                        <input type="number" id="ba-max-price" placeholder="500000">
+                    </div>
+                    <div class="form-group small">
+                        <label for="ba-min-beds">Min Beds</label>
+                        <input type="number" id="ba-min-beds" value="3" min="0">
+                    </div>
+                    <div class="form-group small">
+                        <label for="ba-min-baths">Min Baths</label>
+                        <input type="number" id="ba-min-baths" value="2" min="0" step="0.5">
+                    </div>
+                    <div class="form-group full">
+                        <label for="ba-other">Other Requirements</label>
+                        <textarea id="ba-other" rows="2" placeholder="Garage, fenced yard, etc."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="form-section">
+                <h3>Agreement Terms</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ba-term">Term (months)</label>
+                        <input type="number" id="ba-term" value="6" min="1" max="12">
+                    </div>
+                    <div class="form-group">
+                        <label for="ba-commission">Commission (%)</label>
+                        <input type="number" id="ba-commission" value="2.5" step="0.1" min="0">
+                    </div>
+                </div>
+            </div>
+            <div id="ba-result" style="display: none; margin-top: var(--spacing-lg);">
+                <div class="success-message">
+                    <span class="success-icon">✓</span>
+                    <span>Agreement generated successfully!</span>
+                </div>
+                <div class="ba-actions" style="margin-top: var(--spacing-md);">
+                    <a id="ba-download-link" href="#" class="btn btn-secondary" download>Download Markdown</a>
+                    <button class="btn btn-secondary" onclick="copyAgreementToClipboard()">Copy to Clipboard</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeBuyerAgreementModal()">Cancel</button>
+            <button class="btn btn-primary" id="ba-generate-btn" onclick="generateBuyerAgreement()">Generate Agreement</button>
         </div>
     </div>
 </div>
@@ -1194,6 +1280,34 @@
 .form-group select {
     cursor: pointer;
 }
+
+/* Success message for generated documents */
+.success-message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--accent-green);
+}
+
+.success-icon {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.ba-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.btn-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green);
+    border-color: rgba(34, 197, 94, 0.3);
+}
 </style>
 
 <script>
@@ -1641,6 +1755,86 @@ function updateExtractFields() {
 }
 
 document.getElementById('extract-type')?.addEventListener('change', updateExtractFields);
+
+// =============================================================================
+// Buyer Agreement Modal
+// =============================================================================
+
+let generatedAgreementContent = null;
+
+function openBuyerAgreementModal() {
+    document.getElementById('buyer-agreement-modal').style.display = 'flex';
+    document.getElementById('ba-result').style.display = 'none';
+    document.getElementById('ba-generate-btn').disabled = false;
+    document.getElementById('ba-generate-btn').textContent = 'Generate Agreement';
+}
+
+function closeBuyerAgreementModal() {
+    document.getElementById('buyer-agreement-modal').style.display = 'none';
+    generatedAgreementContent = null;
+}
+
+async function generateBuyerAgreement() {
+    const btn = document.getElementById('ba-generate-btn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    const data = {
+        property_type: document.getElementById('ba-property-type').value,
+        locations: document.getElementById('ba-locations').value || null,
+        min_price: parseInt(document.getElementById('ba-min-price').value) || null,
+        max_price: parseInt(document.getElementById('ba-max-price').value) || null,
+        min_beds: parseInt(document.getElementById('ba-min-beds').value) || 3,
+        min_baths: parseFloat(document.getElementById('ba-min-baths').value) || 2,
+        other_requirements: document.getElementById('ba-other').value || null,
+        term_months: parseInt(document.getElementById('ba-term').value) || 6,
+        commission_percent: parseFloat(document.getElementById('ba-commission').value) || 2.5,
+    };
+
+    try {
+        const response = await fetch('/clients/{{ client.id }}/documents/buyer-agreement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate agreement');
+        }
+
+        const result = await response.json();
+        generatedAgreementContent = result.content;
+
+        // Show success
+        document.getElementById('ba-result').style.display = 'block';
+
+        // Create download link
+        const blob = new Blob([result.content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById('ba-download-link');
+        link.href = url;
+        link.download = 'buyer_agency_agreement_{{ client.name | replace(" ", "_") }}.md';
+
+        btn.textContent = 'Generated!';
+        btn.classList.add('btn-success');
+
+        showToast('Buyer agreement generated and saved');
+
+    } catch (error) {
+        console.error('Error generating agreement:', error);
+        btn.disabled = false;
+        btn.textContent = 'Generate Agreement';
+        showToast('Error: ' + error.message);
+    }
+}
+
+function copyAgreementToClipboard() {
+    if (generatedAgreementContent) {
+        navigator.clipboard.writeText(generatedAgreementContent).then(() => {
+            showToast('Agreement copied to clipboard');
+        });
+    }
+}
 
 async function runExtraction() {
     const content = document.getElementById('extract-content').value.trim();
