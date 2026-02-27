@@ -105,8 +105,8 @@ async def list_clients_api(status: str | None = None, limit: int = 100) -> list[
     return await db.get_clients(status=status, limit=limit)
 
 
-@router.post("")
-async def create_client(request: Request, client: ClientCreate) -> dict | HTMLResponse:
+@router.post("", response_model=None)
+async def create_client(request: Request, client: ClientCreate):
     """Create a new client."""
     db = await get_database()
     client_id = await db.create_client(**client.model_dump())
