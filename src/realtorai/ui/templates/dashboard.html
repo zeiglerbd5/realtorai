@@ -118,10 +118,10 @@
             </div>
         </section>
 
-        <!-- Clients Panel -->
+        <!-- Clients Panel (main panel) -->
         <section class="panel clients-panel">
             <div class="panel-header">
-                <h2>Current Clients</h2>
+                <h2>Active Clients</h2>
                 <span class="badge">{{ clients | length }}</span>
             </div>
             <div class="panel-content">
@@ -131,9 +131,6 @@
                     <a href="/clients/{{ client.id }}" class="client-card" data-client-id="{{ client.id }}">
                         <div class="client-header">
                             <span class="client-name">{{ client.name }}</span>
-                            <span class="client-status {{ client.status }}">
-                                {{ client.status | replace('_', ' ') | title }}
-                            </span>
                         </div>
                         <div class="client-details">
                             {% if client.property_address %}
@@ -149,14 +146,64 @@
                 <a href="/clients" class="view-all">View all clients →</a>
                 {% else %}
                 <div class="empty-state">
-                    <p>No clients yet</p>
-                    <p class="subtle">Say "new client [name]" in chat to add one</p>
+                    <p>No active clients yet</p>
+                    <p class="subtle">Leads convert to clients when they sign an agreement</p>
                 </div>
                 {% endif %}
             </div>
         </section>
 
-        <!-- Status Panel -->
+        <!-- Leads Panel (secondary) -->
+        {% if leads %}
+        <section class="panel leads-panel">
+            <div class="panel-header">
+                <h2>Leads</h2>
+                <span class="badge">{{ leads | length }}</span>
+            </div>
+            <div class="panel-content">
+                <div class="client-list">
+                    {% for lead in leads[:4] %}
+                    <a href="/clients/{{ lead.id }}" class="client-card lead-card" data-client-id="{{ lead.id }}">
+                        <div class="client-header">
+                            <span class="client-name">{{ lead.name }}</span>
+                            <span class="lead-badge">Lead</span>
+                        </div>
+                        <div class="client-details">
+                            {% if lead.email %}
+                            <span class="email">{{ lead.email }}</span>
+                            {% endif %}
+                            {% if lead.transaction_type %}
+                            <span class="type">{{ lead.transaction_type | title }}er</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                <a href="/clients?status=lead" class="view-all">View all leads →</a>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Quick Chat Panel (main panel) -->
+        <section class="panel chat-panel">
+            <div class="panel-header">
+                <h2>Quick Chat</h2>
+            </div>
+            <div class="panel-content">
+                <form id="quick-chat-form" class="chat-form">
+                    <input type="text"
+                           name="message"
+                           id="quick-chat-input"
+                           placeholder="Ask me anything or give me a task..."
+                           class="chat-input"
+                           autocomplete="off">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
+                <div id="chat-response" class="chat-response"></div>
+            </div>
+        </section>
+
+        <!-- Status Panel (secondary) -->
         <section class="panel status-panel">
             <div class="panel-header">
                 <h2>System Status</h2>
@@ -195,25 +242,6 @@
                     <span class="status-value warning">Not running</span>
                     {% endif %}
                 </div>
-            </div>
-        </section>
-
-        <!-- Quick Chat Panel -->
-        <section class="panel chat-panel">
-            <div class="panel-header">
-                <h2>Quick Chat</h2>
-            </div>
-            <div class="panel-content">
-                <form id="quick-chat-form" class="chat-form">
-                    <input type="text"
-                           name="message"
-                           id="quick-chat-input"
-                           placeholder="Ask me anything or give me a task..."
-                           class="chat-input"
-                           autocomplete="off">
-                    <button type="submit" class="btn btn-primary">Send</button>
-                </form>
-                <div id="chat-response" class="chat-response"></div>
             </div>
         </section>
     </div>
