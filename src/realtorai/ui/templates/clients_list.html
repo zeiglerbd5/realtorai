@@ -8,7 +8,10 @@
         <div class="header-nav">
             <a href="/" class="back-link">← Dashboard</a>
         </div>
-        <h1>All Clients</h1>
+        <div class="header-title-row">
+            <h1>All Clients</h1>
+            <button class="btn btn-primary" onclick="openAddClientModal()">+ Add Client</button>
+        </div>
     </header>
 
     <div class="filters">
@@ -67,10 +70,78 @@
     {% else %}
     <div class="empty-state">
         <p>No clients found</p>
-        <p class="subtle">Say "new client [name]" in chat to add one</p>
+        <p class="subtle">Click "+ Add Client" above or say "new client [name]" in chat</p>
     </div>
     {% endif %}
 </div>
+
+<!-- Add Client Modal -->
+<div id="add-client-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add New Client</h2>
+            <button class="modal-close" onclick="closeAddClientModal()">&times;</button>
+        </div>
+        <form hx-post="/clients/" hx-swap="none">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="client-name">Name *</label>
+                    <input type="text" id="client-name" name="name" required placeholder="Client name">
+                </div>
+                <div class="form-group">
+                    <label for="client-email">Email</label>
+                    <input type="email" id="client-email" name="email" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="client-phone">Phone</label>
+                    <input type="tel" id="client-phone" name="phone" placeholder="(555) 123-4567">
+                </div>
+                <div class="form-group">
+                    <label for="client-type">Transaction Type</label>
+                    <select id="client-type" name="transaction_type">
+                        <option value="buy">Buyer</option>
+                        <option value="sell">Seller</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="client-address">Property Address (optional)</label>
+                    <input type="text" id="client-address" name="property_address" placeholder="123 Main St, City, State">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddClientModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddClientModal() {
+    document.getElementById('add-client-modal').classList.add('active');
+    document.getElementById('client-name').focus();
+}
+
+function closeAddClientModal() {
+    document.getElementById('add-client-modal').classList.remove('active');
+    // Reset form
+    document.querySelector('#add-client-modal form').reset();
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeAddClientModal();
+    }
+});
+
+// Close modal when clicking outside
+document.getElementById('add-client-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'add-client-modal') {
+        closeAddClientModal();
+    }
+});
+</script>
 
 <style>
 .clients-page {
@@ -226,6 +297,114 @@
 .empty-state .subtle {
     font-size: 0.875rem;
     margin-top: var(--spacing-sm);
+}
+
+.header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-sm);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-lg);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+}
+
+.modal-body .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.modal-body .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.modal-body .form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-secondary);
+}
+
+.modal-body .form-group input,
+.modal-body .form-group select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.modal-body .form-group input:focus,
+.modal-body .form-group select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
 }
 </style>
 {% endblock %}

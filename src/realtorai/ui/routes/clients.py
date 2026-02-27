@@ -105,11 +105,19 @@ async def list_clients_api(status: str | None = None, limit: int = 100) -> list[
     return await db.get_clients(status=status, limit=limit)
 
 
-@router.post("", response_model=dict)
-async def create_client(client: ClientCreate) -> dict:
+@router.post("")
+async def create_client(request: Request, client: ClientCreate) -> dict | HTMLResponse:
     """Create a new client."""
     db = await get_database()
     client_id = await db.create_client(**client.model_dump())
+
+    # If HTMX request, redirect to client detail page
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            status_code=200,
+            headers={"HX-Redirect": f"/clients/{client_id}"}
+        )
+
     return await db.get_client(client_id)
 
 
@@ -195,6 +203,22 @@ async def update_client(client_id: int, updates: ClientUpdate) -> dict:
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     return client
+
+
+@router.post("/{client_id}/archive")
+async def archive_client(client_id: int) -> HTMLResponse:
+    """Archive a client (soft delete)."""
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    await db.update_client(client_id, status="archived")
+
+    return HTMLResponse(
+        status_code=200,
+        headers={"HX-Redirect": "/clients"}
+    )
 
 
 @router.get("/{client_id}/notes", response_model=list[dict])
