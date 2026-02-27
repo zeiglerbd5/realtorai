@@ -114,6 +114,7 @@ async def create_client(request: Request, client: ClientCreate) -> dict | HTMLRe
     # If HTMX request, redirect to client detail page
     if request.headers.get("HX-Request"):
         return HTMLResponse(
+            content="",
             status_code=200,
             headers={"HX-Redirect": f"/clients/{client_id}"}
         )
@@ -216,6 +217,7 @@ async def archive_client(client_id: int) -> HTMLResponse:
     await db.update_client(client_id, status="archived")
 
     return HTMLResponse(
+        content="",
         status_code=200,
         headers={"HX-Redirect": "/clients"}
     )
