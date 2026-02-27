@@ -974,3 +974,101 @@ async def create_docusign_room(client_id: int) -> dict:
     update_client_header(client_id, client["name"], room_id=room_id, status="active")
 
     return {"room_id": room_id, "message": "Room created"}
+
+
+# =============================================================================
+# Document generation endpoints
+# =============================================================================
+
+
+class BuyerAgreementRequest(BaseModel):
+    """Request body for buyer agency agreement generation."""
+    property_type: str = "Single Family Home"
+    locations: str | None = None
+    min_price: int | None = None
+    max_price: int | None = None
+    min_beds: int = 3
+    min_baths: float = 2
+    other_requirements: str | None = None
+    commission_percent: float = 2.5
+    term_months: int = 6
+
+
+@router.post("/{client_id}/documents/buyer-agreement")
+async def generate_buyer_agreement(client_id: int, request: BuyerAgreementRequest) -> dict:
+    """Generate a buyer agency agreement for a client.
+
+    Returns the rendered agreement and saves it to the client's folder.
+    """
+    from realtorai.documents.templates import (
+        render_buyer_agency_agreement,
+        save_rendered_document,
+    )
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Render the agreement
+    content = render_buyer_agency_agreement(
+        buyer_name=client["name"],
+        buyer_email=client.get("email"),
+        buyer_phone=client.get("phone"),
+        property_type=request.property_type,
+        locations=request.locations,
+        min_price=request.min_price,
+        max_price=request.max_price,
+        min_beds=request.min_beds,
+        min_baths=request.min_baths,
+        other_requirements=request.other_requirements,
+        commission_percent=request.commission_percent,
+        term_months=request.term_months,
+    )
+
+    # Save to client folder
+    doc_path = save_rendered_document(
+        content=content,
+        client_id=client_id,
+        client_name=client["name"],
+        document_type="buyer_agency_agreement",
+    )
+
+    return {
+        "success": True,
+        "document_type": "buyer_agency_agreement",
+        "path": str(doc_path),
+        "content": content,
+    }
+
+
+@router.get("/{client_id}/documents/buyer-agreement/preview")
+async def preview_buyer_agreement(
+    client_id: int,
+    property_type: str = "Single Family Home",
+    locations: str | None = None,
+    min_price: int | None = None,
+    max_price: int | None = None,
+) -> dict:
+    """Preview a buyer agency agreement without saving."""
+    from realtorai.documents.templates import render_buyer_agency_agreement
+
+    db = await get_database()
+    client = await db.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    content = render_buyer_agency_agreement(
+        buyer_name=client["name"],
+        buyer_email=client.get("email"),
+        buyer_phone=client.get("phone"),
+        property_type=property_type,
+        locations=locations,
+        min_price=min_price,
+        max_price=max_price,
+    )
+
+    return {
+        "preview": True,
+        "content": content,
+    }
