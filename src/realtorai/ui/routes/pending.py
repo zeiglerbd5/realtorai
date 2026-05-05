@@ -1,7 +1,6 @@
 """Pending items action routes."""
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 
 from realtorai.storage.database import get_database
 

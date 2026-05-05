@@ -1,7 +1,5 @@
 """Main entry point for RealtorAI CLI."""
 
-import sys
-from pathlib import Path
 
 import structlog
 

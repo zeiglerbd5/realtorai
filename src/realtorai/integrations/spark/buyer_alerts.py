@@ -22,9 +22,7 @@ from typing import Any
 import structlog
 
 from realtorai.integrations.spark.client import get_spark_client
-from realtorai.integrations.spark.listings import format_listing_summary
 from realtorai.storage.database import get_database
-from realtorai.config.settings import get_settings
 
 logger = structlog.get_logger()
 

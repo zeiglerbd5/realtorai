@@ -14,7 +14,7 @@ from realtorai.inference.tools import EMAIL_AGENT_TOOLS
 from realtorai.inference.extraction import create_extraction_proposals
 from realtorai.orchestration.queue import task_queue
 from realtorai.integrations.graph.email import format_email_for_display, get_email_thread
-from realtorai.schemas.common import ChainOfReasoning, Confidence, ReasoningStep
+from realtorai.schemas.common import ChainOfReasoning, ReasoningStep
 from realtorai.schemas.email import DraftResponse, EmailClassification, EmailIntent, EmailProposal
 from realtorai.storage.database import get_database
 
