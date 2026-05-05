@@ -23,8 +23,7 @@ from typing import Any
 
 import structlog
 
-from realtorai.config.settings import get_settings
-from realtorai.storage.client_files import slugify, get_client_dir
+from realtorai.storage.client_files import get_client_dir
 
 logger = structlog.get_logger()
 

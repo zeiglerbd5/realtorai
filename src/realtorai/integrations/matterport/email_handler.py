@@ -14,8 +14,6 @@ from typing import Any
 import httpx
 import structlog
 
-from realtorai.config.settings import get_settings
-from realtorai.storage.client_files import slugify
 from realtorai.integrations.matterport.downloader import get_client_matterport_dir
 
 logger = structlog.get_logger()

@@ -1,7 +1,6 @@
 """SQLite database for task queue and persistent storage."""
 
 import json
-import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path

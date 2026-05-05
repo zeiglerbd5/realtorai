@@ -1,7 +1,6 @@
 """Feedback logging for RL training data collection."""
 
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
