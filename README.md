@@ -126,22 +126,31 @@ realtorai setup [--model 8b|3b]
 ```
 realtorai/
 ├── src/realtorai/
+│   ├── cli.py / daemon.py / main.py    # Entry points
 │   ├── agents/          # AI agent implementations
 │   ├── config/          # Configuration management
-│   ├── inference/       # MLX inference engine
-│   ├── integrations/    # External service integrations
-│   │   └── graph/       # Microsoft Graph API
-│   ├── orchestration/   # Task queue and approval loop
+│   ├── documents/       # Generated document templates (e.g., buyer agency)
+│   ├── inference/       # MLX inference + structured extraction
+│   ├── integrations/    # External service adapters
+│   │   ├── graph/       # Microsoft Graph (Outlook, Calendar)
+│   │   ├── spark/       # Spark / FlexMLS API + buyer alerts
+│   │   ├── docusign/    # DocuSign Rooms
+│   │   ├── matterport/  # Matterport tour ingest
+│   │   └── web/         # Web search
+│   ├── orchestration/   # Task queue and human-in-loop approval
+│   ├── rag/             # ChromaDB knowledge base + retrieval
 │   ├── schemas/         # Pydantic data models
-│   ├── storage/         # Database and keychain
-│   └── ui/              # FastAPI web application
-│       ├── routes/      # API endpoints
-│       ├── static/      # CSS, JavaScript
-│       └── templates/   # Jinja2 HTML templates
+│   ├── storage/         # SQLite + macOS Keychain
+│   ├── transactions/    # Contract-to-close tracking
+│   └── ui/              # FastAPI + Jinja2 + HTMX web app
+│       ├── routes/      # API and HTML endpoints
+│       ├── static/      # CSS / JavaScript
+│       └── templates/   # Jinja2 HTML
 ├── scripts/             # Setup and utility scripts
 ├── tests/               # Test suite
 └── data/                # Local data (gitignored)
     ├── realtorai.db     # SQLite database
+    ├── chroma/          # Vector store
     └── logs/            # Feedback logs for training
 ```
 
@@ -207,10 +216,14 @@ Feedback logged for training
 
 ### Key Components
 
-- **Inference Engine** - MLX wrapper for Llama 3.2 with structured output
+- **Inference Engine** - MLX wrapper for Llama 3.1 8B with structured output
 - **Email Agent** - Specialized agent for email triage and response
 - **Task Queue** - SQLite-backed queue for pending approvals
 - **Approval Loop** - Human-in-the-loop confirmation system
+- **RAG Knowledge Base** - ChromaDB store for ingested domain documents (NAR Code of Ethics, Maine RE laws, etc.) augmented into chat and email drafts
+- **MLS Integration** - Spark / FlexMLS API for listings, comps, and market stats with browser-based OAuth
+- **Transaction Tracker** - Contract-to-close workflow with DocuSign Rooms and document template generation
+- **Web Search** - DuckDuckGo tool for grounding responses in current news
 - **Feedback Logger** - Captures decisions for future RL fine-tuning
 
 ## Privacy & Security
@@ -222,30 +235,47 @@ Feedback logged for training
 
 ## Roadmap
 
-### Phase 1 (Current)
-- [x] Core infrastructure
-- [x] Email triage and drafting
-- [x] Web UI with approval queue
-- [ ] Microsoft Graph integration
+See [PROGRESS.md](PROGRESS.md) for the detailed development tracker.
 
-### Phase 2
-- [ ] LoRA fine-tuning for communication style
-- [ ] ChromaDB RAG for domain knowledge
-- [ ] MLS integration
+### Phase 1: Email Triage MVP — complete
+- [x] MLX inference engine with structured output
+- [x] Email classification + draft response generation
+- [x] Web UI dashboard with approval queue
+- [x] Microsoft Graph OAuth + Keychain token storage
+- [x] Background daemon for email polling
+- [x] Feedback logging for future fine-tuning
 
-### Phase 3
-- [ ] Calendar management
-- [ ] Transaction tracking
-- [ ] DocuSign integration
+### Phase 2: Knowledge & Style — in progress
+- [x] ChromaDB RAG knowledge base (NAR ethics, Maine RE laws ingested)
+- [x] Streaming chat (CLI + dashboard SSE)
+- [x] Web search via DuckDuckGo (no API key)
+- [x] Spark / FlexMLS API integration (search, comps, market stats)
+- [ ] LoRA fine-tuning for personal communication style
+- [ ] iMessage integration
 
-### Phase 4
-- [ ] Mobile companion app
+### Phase 3: Transactions & Listings — in progress
+- [x] Transaction tracker (contract-to-close workflow)
+- [x] DocuSign Rooms integration
+- [x] Matterport tour ingest (email + zip download)
+- [x] Document template system (e.g., buyer agency agreement)
+- [x] Maine agency agreement gating
+- [x] Buyer alerts via Spark
+- [ ] Buyer-listing matching engine
+- [ ] zipForm integration
+
+### Phase 4: Mobile & Polish — future
+- [ ] Mobile notifications / companion app
 - [ ] Voice transcription
-- [ ] Team features
+- [ ] Dashboard UI refinements
+
+### Phase 5: Cloud — future
+- [ ] AWS-hosted deployment for clients without Apple Silicon
 
 ## License
 
-MIT License - See LICENSE file for details.
+All rights reserved. This source is published for portfolio review and
+evaluation only — no use, copying, modification, or redistribution is
+permitted without written permission. See [LICENSE](LICENSE).
 
 ## Support
 
