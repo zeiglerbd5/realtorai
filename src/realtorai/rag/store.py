@@ -1,6 +1,5 @@
 """ChromaDB vector store for document embeddings."""
 
-from pathlib import Path
 from typing import Any
 
 import chromadb

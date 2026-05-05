@@ -623,7 +623,6 @@ class Dispatcher:
     async def _handle_download_matterport_zip(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle download_matterport_zip tool call - downloads zip from email link."""
         from realtorai.integrations.matterport import (
-            process_matterport_email,
             download_and_extract_zip,
             extract_download_url,
         )
@@ -683,8 +682,6 @@ class Dispatcher:
         """Handle update_mls_feeder tool call - updates listing data."""
         from realtorai.integrations.spark.mls_feeder import (
             update_mls_feeder,
-            get_mls_feeder,
-            create_mls_feeder,
             format_feeder_summary,
             get_feeder_completeness,
         )

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import markdown
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
@@ -12,7 +12,6 @@ from realtorai.storage.database import get_database
 from realtorai.storage.client_files import (
     read_client_file,
     write_client_file,
-    append_note,
 )
 from realtorai.integrations.matterport.downloader import (
     get_client_matterport_dir,
@@ -601,7 +600,6 @@ async def set_client_buyer_criteria(client_id: int, updates: BuyerCriteriaUpdate
     """Set or update buyer search criteria for a client."""
     from realtorai.integrations.spark.buyer_alerts import (
         update_buyer_criteria,
-        BuyerCriteria,
     )
 
     db = await get_database()

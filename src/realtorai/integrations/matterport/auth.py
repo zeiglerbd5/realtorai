@@ -3,8 +3,6 @@
 Uses token/secret pair stored in environment and Keychain.
 """
 
-from datetime import datetime
-from typing import Any
 
 import structlog
 
