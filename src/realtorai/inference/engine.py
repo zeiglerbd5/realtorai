@@ -1,7 +1,6 @@
 """MLX inference engine wrapper for Llama 3.2."""
 
 import json
-import sys
 from pathlib import Path
 from typing import Any, AsyncIterator, TypeVar
 

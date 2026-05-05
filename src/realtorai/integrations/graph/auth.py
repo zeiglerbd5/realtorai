@@ -1,15 +1,12 @@
 """Microsoft Graph API OAuth 2.0 authentication."""
 
-import sys
 import webbrowser
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
 from threading import Thread
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-import httpx
 import msal
 import structlog
 

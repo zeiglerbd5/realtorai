@@ -12,7 +12,6 @@ API Reference: https://sparkplatform.com/docs/api_services/listings
 
 import asyncio
 import mimetypes
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 

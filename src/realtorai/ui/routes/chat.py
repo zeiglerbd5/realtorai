@@ -138,7 +138,7 @@ async def stream_message(message: str = Form(...)):
 
     if needs_search:
         # Run web search and add results to context
-        from realtorai.integrations.web import web_search, format_search_results
+        from realtorai.integrations.web import web_search
         import structlog
         log = structlog.get_logger()
 
