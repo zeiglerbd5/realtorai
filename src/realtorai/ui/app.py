@@ -75,8 +75,11 @@ async def index(request: Request) -> HTMLResponse:
     # Get pending tasks
     pending_tasks = await task_queue.get_pending(limit=20)
 
-    # Get active clients
-    clients = await db.get_clients(limit=10)
+    # Get active clients (not leads)
+    clients = await db.get_clients(status="active", limit=10)
+
+    # Get leads separately
+    leads = await db.get_clients(status="lead", limit=10)
 
     # Get pending items (what system is waiting on)
     waiting_on = await db.get_pending_items(status="waiting")
@@ -99,6 +102,7 @@ async def index(request: Request) -> HTMLResponse:
             "pending_tasks": pending_tasks,
             "pending_count": len(pending_tasks),
             "clients": clients,
+            "leads": leads,
             "waiting_on": waiting_on,
             "graph_connected": graph_connected,
             "docusign_connected": docusign_connected,

@@ -1889,6 +1889,20 @@ async function runExtraction() {
     }
 }
 
+function showToast(message) {
+    // Simple toast notification
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
 function formatExtractionResult(extraction) {
     if (!extraction) return 'No data extracted.';
 

@@ -170,6 +170,8 @@ class ApprovalLoop:
             await self._execute_calendar_event(task)
         elif task.task_type in (TaskType.EXTRACTION_MLS, TaskType.EXTRACTION_TRANSACTION):
             await self._execute_extraction(task)
+        elif task.task_type == TaskType.DOCUMENT_RECEIVED:
+            await self._execute_document_received(task)
         else:
             logger.warning("unknown_task_type", task_type=task.task_type.value)
 
@@ -266,6 +268,71 @@ class ApprovalLoop:
 
         else:
             raise ValueError(f"Unknown extraction type: {extraction_type}")
+
+        # Resolve matching pending items
+        pending_item_ids = proposal.get("pending_items_to_resolve", [])
+        if pending_item_ids:
+            db = await get_database()
+            for item_id in pending_item_ids:
+                await db.resolve_pending_item(item_id, status="received")
+            logger.info(
+                "pending_items_resolved",
+                task_id=task.id,
+                client_id=client_id,
+                resolved_ids=pending_item_ids,
+            )
+
+    async def _execute_document_received(self, task: Task) -> None:
+        """Execute a document received task.
+
+        Marks the associated pending item as received/resolved.
+        If this is a buyer/listing agency agreement, converts lead to client.
+        """
+        proposal = task.proposal_data
+        details = task.details
+
+        pending_item_id = proposal.get("pending_item_id")
+        new_status = proposal.get("new_status", "received")
+        client_id = details.get("client_id")
+        pending_item_desc = details.get("pending_item_description", "").lower()
+
+        if not pending_item_id:
+            raise ValueError("No pending_item_id in task proposal")
+
+        db = await get_database()
+        await db.resolve_pending_item(pending_item_id, status=new_status)
+
+        # Check if this was an agency agreement - if so, convert lead to client
+        is_agency_agreement = any(term in pending_item_desc for term in [
+            "buyer agency", "agency agreement", "listing agreement",
+            "client agreement", "representation agreement",
+        ])
+
+        if is_agency_agreement and client_id:
+            # Get the client/lead to check their status
+            client = await db.get_client(client_id)
+            if client and client.get("status") == "lead":
+                # Convert lead to active client
+                await db.convert_lead_to_client(client_id)
+                # Add standard client pending items (pre-approval, etc.)
+                tx_type = client.get("transaction_type", "buy")
+                await db.add_standard_client_pending_items(client_id, tx_type)
+
+                logger.info(
+                    "lead_converted_on_agreement",
+                    task_id=task.id,
+                    client_id=client_id,
+                    client_name=client.get("name"),
+                )
+
+        logger.info(
+            "document_received_executed",
+            task_id=task.id,
+            client_id=client_id,
+            pending_item_id=pending_item_id,
+            pending_item_desc=details.get("pending_item_description"),
+            new_status=new_status,
+        )
 
 
 # Default instance

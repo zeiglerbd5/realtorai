@@ -14,6 +14,7 @@ class TaskType(str, Enum):
     EMAIL_FORWARD = "email_forward"
     CALENDAR_EVENT = "calendar_event"
     DOCUMENT_SEND = "document_send"
+    DOCUMENT_RECEIVED = "document_received"  # Client sent a document (signed agreement, etc.)
     LISTING_ALERT = "listing_alert"
     FOLLOWUP_REMINDER = "followup_reminder"
     TRANSACTION_UPDATE = "transaction_update"

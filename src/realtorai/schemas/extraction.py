@@ -22,6 +22,15 @@ class FieldChange(BaseModel):
     source_snippet: str = Field(default="", description="Email text supporting this")
 
 
+class PendingItemMatch(BaseModel):
+    """A pending item that will be resolved by an extraction."""
+
+    id: int
+    description: str
+    waiting_on: str
+    item_type: str
+
+
 class ExtractionProposal(BaseModel):
     """Proposal to apply extracted data to a tracker.
 
@@ -50,6 +59,9 @@ class ExtractionProposal(BaseModel):
     # Transaction-specific
     milestones_to_set: list[str] = Field(default_factory=list)
     documents_to_mark: list[str] = Field(default_factory=list)
+
+    # Pending items that will be resolved by this extraction
+    pending_items_to_resolve: list[PendingItemMatch] = Field(default_factory=list)
 
     def get_summary(self) -> str:
         """Generate a summary string for queue display."""

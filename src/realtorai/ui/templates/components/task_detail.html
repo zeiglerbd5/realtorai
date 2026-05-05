@@ -50,6 +50,36 @@
     </div>
     {% endif %}
 
+    {# Document received task display #}
+    {% if task.task_type.value == 'document_received' %}
+    <div class="document-received-details">
+        {# Source citation #}
+        {% if task.details.get('source_email_subject') %}
+        <div class="source-citation">
+            <div class="source-header">
+                <span class="source-subject">{{ task.details.source_email_subject }}</span>
+            </div>
+            {% if task.details.get('source_snippet') %}
+            <blockquote class="source-snippet">{{ task.details.source_snippet }}</blockquote>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="document-info">
+            <div class="pending-item-card">
+                <div class="pending-item-header">
+                    <span class="document-icon">📄</span>
+                    <span class="pending-item-desc">{{ task.details.pending_item_description }}</span>
+                </div>
+                <div class="pending-item-from">
+                    From: <span class="from-badge {{ task.details.pending_item_waiting_on }}">{{ task.details.pending_item_waiting_on | replace('_', ' ') }}</span>
+                </div>
+            </div>
+            <p class="document-action">Approving will mark this item as <strong>received</strong>.</p>
+        </div>
+    </div>
+    {% endif %}
+
     {# Extraction task display #}
     {% if task.task_type.value in ('extraction_mls', 'extraction_transaction') %}
     <div class="extraction-details">
@@ -115,6 +145,22 @@
             <ul class="document-list">
                 {% for doc in task.details.documents_to_mark %}
                 <li>{{ doc | replace('_', ' ') | title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {# Pending items that will be resolved #}
+        {% if task.details.get('pending_items_to_resolve') %}
+        <div class="pending-resolution-section">
+            <h4>Will mark as received:</h4>
+            <ul class="pending-resolution-list">
+                {% for item in task.details.pending_items_to_resolve %}
+                <li>
+                    <span class="check-icon">&#10003;</span>
+                    <span class="item-description">{{ item.description }}</span>
+                    <span class="from-badge {{ item.waiting_on }}">{{ item.waiting_on | replace('_', ' ') }}</span>
+                </li>
                 {% endfor %}
             </ul>
         </div>

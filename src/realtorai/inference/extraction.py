@@ -19,7 +19,8 @@ from realtorai.inference.prompts import (
 )
 from realtorai.inference.tools import EXTRACTION_TOOLS
 from realtorai.integrations.spark.mls_feeder import get_mls_feeder, update_mls_feeder
-from realtorai.schemas.extraction import ExtractionProposal, ExtractionType, FieldChange
+from realtorai.schemas.extraction import ExtractionProposal, ExtractionType, FieldChange, PendingItemMatch
+from realtorai.storage.database import get_database
 from realtorai.transactions import (
     get_transaction,
     update_transaction,
@@ -592,6 +593,162 @@ def _extract_source_snippet(content: str, extraction: dict[str, Any], max_length
     return content[:max_length]
 
 
+# Mapping of extracted fields to pending item descriptions (for fuzzy matching)
+FIELD_TO_PENDING_ITEM_PATTERNS: dict[str, list[str]] = {
+    # Dates
+    "dates.closing_date": ["closing date", "closing confirmation", "close date"],
+    "dates.inspection_deadline": ["inspection date", "inspection scheduled", "inspection deadline"],
+    "dates.appraisal_deadline": ["appraisal date", "appraisal deadline"],
+    "dates.effective_date": ["effective date", "contract date"],
+    "dates.emd_due_date": ["emd", "earnest money", "deposit due"],
+    "dates.loan_application_deadline": ["loan application", "mortgage application"],
+    "dates.financing_contingency": ["financing contingency", "loan contingency"],
+    "dates.walkthrough_date": ["walkthrough", "final walk"],
+    # Contacts
+    "contacts.lender": ["lender info", "lender contact", "loan officer", "mortgage"],
+    "contacts.title_company": ["title company", "closing attorney", "title agent", "settlement"],
+    "contacts.other_agent": ["agent contact", "other agent", "buyer agent", "seller agent", "listing agent"],
+    "contacts.inspector": ["inspector", "inspection contact"],
+    # Financial
+    "financial.purchase_price": ["purchase price", "offer amount", "sale price"],
+    "financial.emd_amount": ["emd amount", "earnest money", "deposit amount"],
+    "financial.loan_amount": ["loan amount", "mortgage amount"],
+    "financial.down_payment": ["down payment"],
+}
+
+MILESTONE_TO_PENDING_ITEM_PATTERNS: dict[str, list[str]] = {
+    "clear_to_close": ["clear to close", "ctc", "cleared to close"],
+    "inspection_completed": ["inspection", "inspection report"],
+    "appraisal_received": ["appraisal", "appraisal report"],
+    "under_contract": ["contract", "under contract", "signed contract"],
+    "emd_confirmed": ["emd", "earnest money", "deposit confirmed"],
+    "closing_scheduled": ["closing scheduled", "closing date confirmed"],
+    "loan_app_received": ["loan application", "mortgage application"],
+    "closing_disclosure_received": ["closing disclosure", "cd"],
+}
+
+
+def _fuzzy_match_description(description: str, patterns: list[str]) -> bool:
+    """Check if a pending item description fuzzy-matches any patterns."""
+    desc_lower = description.lower()
+    for pattern in patterns:
+        if pattern.lower() in desc_lower:
+            return True
+    return False
+
+
+async def find_matching_pending_items(
+    client_id: int,
+    changes: list[FieldChange],
+    milestones: list[str],
+    documents: list[str],
+) -> list[PendingItemMatch]:
+    """Find pending_items that would be resolved by these changes.
+
+    Matches extracted fields/milestones/documents against pending items
+    using fuzzy description matching.
+
+    Args:
+        client_id: Client database ID
+        changes: List of field changes from extraction
+        milestones: List of milestones to be set
+        documents: List of documents to be marked
+
+    Returns:
+        List of PendingItemMatch objects for items that should be resolved
+    """
+    db = await get_database()
+    pending_items = await db.get_pending_items(client_id=client_id, status="waiting")
+
+    if not pending_items:
+        return []
+
+    matched = []
+    matched_ids = set()  # Avoid duplicates
+
+    # Check field changes against patterns
+    for change in changes:
+        field_path = change.field_path
+
+        # Handle nested contact fields (e.g., contacts.lender.name -> contacts.lender)
+        if field_path.startswith("contacts.") and field_path.count(".") > 1:
+            # Extract the contact type (contacts.lender.name -> contacts.lender)
+            parts = field_path.split(".")
+            field_path = ".".join(parts[:2])
+
+        patterns = FIELD_TO_PENDING_ITEM_PATTERNS.get(field_path, [])
+        if not patterns:
+            continue
+
+        for item in pending_items:
+            if item["id"] in matched_ids:
+                continue
+            if _fuzzy_match_description(item["description"], patterns):
+                matched.append(PendingItemMatch(
+                    id=item["id"],
+                    description=item["description"],
+                    waiting_on=item["waiting_on"],
+                    item_type=item["item_type"],
+                ))
+                matched_ids.add(item["id"])
+
+    # Check milestones against patterns
+    for milestone in milestones:
+        patterns = MILESTONE_TO_PENDING_ITEM_PATTERNS.get(milestone, [])
+        if not patterns:
+            continue
+
+        for item in pending_items:
+            if item["id"] in matched_ids:
+                continue
+            if _fuzzy_match_description(item["description"], patterns):
+                matched.append(PendingItemMatch(
+                    id=item["id"],
+                    description=item["description"],
+                    waiting_on=item["waiting_on"],
+                    item_type=item["item_type"],
+                ))
+                matched_ids.add(item["id"])
+
+    # Check documents - match directly by document name
+    for doc in documents:
+        doc_patterns = [
+            doc.replace("_", " "),  # purchase_sale_agreement -> purchase sale agreement
+            doc.replace("_", ""),   # purchase_sale_agreement -> purchasesaleagreement
+        ]
+        # Add common aliases
+        doc_aliases = {
+            "purchase_sale_agreement": ["p&s", "p and s", "purchase agreement", "sales contract"],
+            "inspection_report": ["inspection", "home inspection"],
+            "appraisal": ["appraisal report", "property appraisal"],
+            "closing_disclosure": ["cd", "closing docs"],
+            "proof_of_funds": ["pof", "bank statement", "funds verification"],
+            "loan_application_letter": ["loan app", "mortgage app", "pre-approval"],
+        }
+        doc_patterns.extend(doc_aliases.get(doc, []))
+
+        for item in pending_items:
+            if item["id"] in matched_ids:
+                continue
+            if _fuzzy_match_description(item["description"], doc_patterns):
+                matched.append(PendingItemMatch(
+                    id=item["id"],
+                    description=item["description"],
+                    waiting_on=item["waiting_on"],
+                    item_type=item["item_type"],
+                ))
+                matched_ids.add(item["id"])
+
+    logger.info(
+        "pending_items_matched",
+        client_id=client_id,
+        matched_count=len(matched),
+        matched_ids=list(matched_ids),
+    )
+
+    return matched
+
+
 def compute_mls_diff(
     client_id: int,
     name: str,
@@ -793,6 +950,13 @@ async def create_extraction_proposals(
             if mls_extraction.has_data:
                 changes = compute_mls_diff(client_id, name, mls_extraction, email_content)
                 if changes:
+                    # Find matching pending items for MLS changes
+                    pending_matches = await find_matching_pending_items(
+                        client_id=client_id,
+                        changes=changes,
+                        milestones=[],
+                        documents=[],
+                    )
                     proposals.append(ExtractionProposal(
                         extraction_type=ExtractionType.MLS,
                         client_id=client_id,
@@ -803,6 +967,7 @@ async def create_extraction_proposals(
                         changes=changes,
                         raw_extraction=mls_extraction.model_dump(),
                         confidence=classification.confidence,
+                        pending_items_to_resolve=pending_matches,
                     ))
 
     # Extract and compute diff for transaction data
@@ -813,6 +978,13 @@ async def create_extraction_proposals(
                 client_id, name, tx_extraction, email_content
             )
             if changes or milestones or documents:
+                # Find matching pending items for transaction changes
+                pending_matches = await find_matching_pending_items(
+                    client_id=client_id,
+                    changes=changes,
+                    milestones=milestones,
+                    documents=documents,
+                )
                 proposals.append(ExtractionProposal(
                     extraction_type=ExtractionType.TRANSACTION,
                     client_id=client_id,
@@ -825,6 +997,7 @@ async def create_extraction_proposals(
                     confidence=classification.confidence,
                     milestones_to_set=milestones,
                     documents_to_mark=documents,
+                    pending_items_to_resolve=pending_matches,
                 ))
 
     logger.info(

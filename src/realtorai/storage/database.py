@@ -491,6 +491,18 @@ class Database:
         row = await cursor.fetchone()
         return self._row_to_client(row) if row else None
 
+    async def get_client(self, client_id: int) -> dict | None:
+        """Get a client by ID."""
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        cursor = await self._connection.execute(
+            "SELECT * FROM clients WHERE id = ?",
+            (client_id,),
+        )
+        row = await cursor.fetchone()
+        return self._row_to_client(row) if row else None
+
     def _row_to_client(self, row: aiosqlite.Row) -> dict:
         """Convert database row to client dict."""
         return {
@@ -666,6 +678,140 @@ class Database:
                 (status, datetime.utcnow().isoformat(), item_id),
             )
         logger.info("pending_item_resolved", item_id=item_id, status=status)
+
+    # -------------------------------------------------------------------------
+    # Leads (Prospective Clients)
+    # -------------------------------------------------------------------------
+
+    async def create_lead(
+        self,
+        name: str,
+        email: str,
+        phone: str | None = None,
+        transaction_type: str = "buy",
+        source: str | None = None,
+    ) -> int:
+        """Create a new lead. Returns lead ID.
+
+        Leads are stored in the clients table with status='lead'.
+        When they sign the buyer agency agreement, they become active clients.
+        """
+        async with self.transaction() as conn:
+            cursor = await conn.execute(
+                """
+                INSERT INTO clients (
+                    name, email, phone, transaction_type, status, created_at
+                ) VALUES (?, ?, ?, ?, 'lead', ?)
+                """,
+                (
+                    name,
+                    email,
+                    phone,
+                    transaction_type,
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            lead_id = cursor.lastrowid
+
+        logger.info(
+            "lead_created",
+            lead_id=lead_id,
+            name=name,
+            email=email,
+            transaction_type=transaction_type,
+        )
+        return lead_id
+
+    async def find_lead_by_email(self, email: str) -> dict | None:
+        """Find a lead by email address."""
+        if not self._connection:
+            raise RuntimeError("Database not connected")
+
+        cursor = await self._connection.execute(
+            """
+            SELECT * FROM clients
+            WHERE email = ? AND status = 'lead'
+            LIMIT 1
+            """,
+            (email,),
+        )
+        row = await cursor.fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "email": row["email"],
+            "phone": row["phone"],
+            "transaction_type": row["transaction_type"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+        }
+
+    async def convert_lead_to_client(
+        self,
+        lead_id: int,
+        property_address: str | None = None,
+    ) -> None:
+        """Convert a lead to an active client.
+
+        Called when they sign the buyer agency agreement.
+        """
+        async with self.transaction() as conn:
+            await conn.execute(
+                """
+                UPDATE clients
+                SET status = 'active',
+                    property_address = COALESCE(?, property_address),
+                    updated_at = ?
+                WHERE id = ? AND status = 'lead'
+                """,
+                (property_address, datetime.utcnow().isoformat(), lead_id),
+            )
+        logger.info("lead_converted_to_client", lead_id=lead_id)
+
+    async def add_standard_lead_pending_items(self, lead_id: int, transaction_type: str = "buy") -> None:
+        """Add standard pending items for a new lead.
+
+        For buyers: Buyer Agency Agreement
+        For sellers: Listing Agreement
+        """
+        if transaction_type == "buy":
+            await self.create_pending_item(
+                client_id=lead_id,
+                item_type="document",
+                description="Buyer Agency Agreement",
+                waiting_on="client",
+            )
+        elif transaction_type == "sell":
+            await self.create_pending_item(
+                client_id=lead_id,
+                item_type="document",
+                description="Listing Agreement",
+                waiting_on="client",
+            )
+        # Could add more standard items here
+
+    async def add_standard_client_pending_items(self, client_id: int, transaction_type: str = "buy") -> None:
+        """Add standard pending items for a new active client (post-agreement).
+
+        These are the items needed to proceed with the transaction.
+        """
+        if transaction_type == "buy":
+            items = [
+                ("document", "Pre-approval letter", "lender"),
+                ("document", "Proof of funds", "client"),
+                ("info", "Financing details", "client"),
+            ]
+            for item_type, description, waiting_on in items:
+                await self.create_pending_item(
+                    client_id=client_id,
+                    item_type=item_type,
+                    description=description,
+                    waiting_on=waiting_on,
+                )
 
 
 # Global database instance

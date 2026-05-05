@@ -106,6 +106,7 @@ class TaskQueue:
             "changes": [c.model_dump() for c in proposal.changes],
             "milestones_to_set": proposal.milestones_to_set,
             "documents_to_mark": proposal.documents_to_mark,
+            "pending_items_to_resolve": [p.model_dump() for p in proposal.pending_items_to_resolve],
         }
 
         # Proposal data for execution
@@ -115,6 +116,7 @@ class TaskQueue:
             "changes": [c.model_dump() for c in proposal.changes],
             "milestones_to_set": proposal.milestones_to_set,
             "documents_to_mark": proposal.documents_to_mark,
+            "pending_items_to_resolve": [p["id"] for p in details["pending_items_to_resolve"]],
         }
 
         await db.create_task(
@@ -138,6 +140,74 @@ class TaskQueue:
             extraction_type=proposal.extraction_type.value,
             client_id=proposal.client_id,
             change_count=len(proposal.changes),
+        )
+
+        return task_id
+
+    async def add_document_received_task(
+        self,
+        client_id: int,
+        client_name: str,
+        pending_item: dict,
+        email_id: str | None = None,
+        email_subject: str | None = None,
+        email_snippet: str | None = None,
+    ) -> str:
+        """Add a document received task to the queue.
+
+        This task is created when a client sends a document (like a signed agreement)
+        that matches a pending item. Approving this task resolves the pending item.
+
+        Args:
+            client_id: Client database ID
+            client_name: Client display name
+            pending_item: The pending item dict that will be resolved
+            email_id: Optional related email ID
+            email_subject: Optional email subject for context
+            email_snippet: Optional snippet from email body
+
+        Returns:
+            Task ID
+        """
+        db = await get_database()
+
+        task_id = self.generate_id()
+        title = f"Document Received: {client_name}"
+        summary = f"{pending_item['description']} (from {pending_item['waiting_on']})"
+
+        details = {
+            "client_id": client_id,
+            "client_name": client_name,
+            "pending_item_id": pending_item["id"],
+            "pending_item_description": pending_item["description"],
+            "pending_item_waiting_on": pending_item["waiting_on"],
+            "pending_item_type": pending_item.get("item_type", "document"),
+            "source_email_subject": email_subject,
+            "source_snippet": email_snippet,
+        }
+
+        proposal_data = {
+            "action": "resolve_pending_item",
+            "pending_item_id": pending_item["id"],
+            "new_status": "received",
+        }
+
+        await db.create_task(
+            task_id=task_id,
+            task_type=TaskType.DOCUMENT_RECEIVED.value,
+            title=title,
+            summary=summary,
+            details=details,
+            proposal_data=proposal_data,
+            confidence="medium",
+            related_email_id=email_id,
+        )
+
+        logger.info(
+            "document_received_task_added",
+            task_id=task_id,
+            client_id=client_id,
+            pending_item_id=pending_item["id"],
         )
 
         return task_id
