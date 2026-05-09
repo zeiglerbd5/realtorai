@@ -1,7 +1,7 @@
 """Feedback logging for RL training data collection."""
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ class FeedbackLogger:
 
     def _get_log_path(self) -> Path:
         """Get the path for today's feedback log file."""
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).replace(tzinfo=None).strftime("%Y-%m-%d")
         return self.settings.feedback_log_dir / f"feedback_{today}.jsonl"
 
     async def _write_record(self, record: FeedbackRecord) -> None:
@@ -130,7 +130,7 @@ class FeedbackLogger:
 
         # Get files from recent days
         for i in range(days):
-            date = datetime.utcnow().date()
+            date = datetime.now(UTC).replace(tzinfo=None).date()
             date_str = date.strftime("%Y-%m-%d")
             log_path = feedback_log_dir / f"feedback_{date_str}.jsonl"
 

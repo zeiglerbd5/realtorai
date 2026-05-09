@@ -26,7 +26,7 @@ All processing happens locally. Your data never leaves your machine.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/realtorai.git
+git clone https://github.com/zeiglerbd5/realtorai.git
 cd realtorai
 
 # Install with UV (recommended)

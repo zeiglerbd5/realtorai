@@ -15,7 +15,7 @@ API Reference: https://sparkplatform.com/docs/api_services/saved_searches
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -398,7 +398,7 @@ def _save_seen_listings(client_id: int, listing_ids: set[str]) -> None:
         with open(path, "w") as f:
             json.dump({
                 "listing_ids": list(listing_ids),
-                "updated_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             }, f)
     except Exception as e:
         logger.error("seen_listings_save_error", client_id=client_id, error=str(e))
@@ -421,7 +421,7 @@ async def check_for_new_matches(
         List of NEW matching listings (not previously seen)
     """
     # Get listings from last 24 hours (catches anything from last poll cycle)
-    since = datetime.utcnow() - timedelta(hours=24)
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=24)
     listings = await search_new_listings(criteria, since=since)
 
     # Filter out already-seen listings
