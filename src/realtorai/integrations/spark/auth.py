@@ -7,7 +7,7 @@ Documentation: https://sparkplatform.com/docs/overview/api
 """
 
 import webbrowser
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from typing import Any
@@ -79,7 +79,7 @@ class SparkAuth(Integration):
             return False
 
         # Check if token is expired
-        if self._token_expiry and datetime.utcnow() >= self._token_expiry:
+        if self._token_expiry and datetime.now(UTC).replace(tzinfo=None) >= self._token_expiry:
             return await self._refresh_token()
 
         return True
@@ -131,7 +131,7 @@ class SparkAuth(Integration):
 
     def _save_tokens(self, access_token: str, refresh_token: str, expires_in: int) -> None:
         """Save tokens to keychain."""
-        expiry = datetime.utcnow() + timedelta(seconds=expires_in - 300)  # 5 min buffer
+        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)  # 5 min buffer
 
         keychain.set(KeychainKeys.SPARK_ACCESS_TOKEN, access_token)
         keychain.set(KeychainKeys.SPARK_REFRESH_TOKEN, refresh_token)

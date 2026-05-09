@@ -1,6 +1,6 @@
 """Approval loop for agent review of proposed actions."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -28,7 +28,7 @@ class ApprovalLoop:
         # Record approval action
         action = ApprovalAction(
             status=ApprovalStatus.APPROVED,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC).replace(tzinfo=None),
         )
 
         # Update database
@@ -62,7 +62,7 @@ class ApprovalLoop:
             failed_action = ApprovalAction(
                 status=ApprovalStatus.FAILED,
                 agent_notes=str(e),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(UTC).replace(tzinfo=None),
             )
             await db.update_task_status(
                 task.id,
@@ -89,7 +89,7 @@ class ApprovalLoop:
         action = ApprovalAction(
             status=ApprovalStatus.EDITED,
             edited_content=edited_content,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC).replace(tzinfo=None),
         )
 
         # Update the task's proposal data with edits
@@ -127,7 +127,7 @@ class ApprovalLoop:
                 status=ApprovalStatus.FAILED,
                 edited_content=edited_content,
                 agent_notes=str(e),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(UTC).replace(tzinfo=None),
             )
             await db.update_task_status(
                 task.id,
@@ -149,7 +149,7 @@ class ApprovalLoop:
         action = ApprovalAction(
             status=ApprovalStatus.REJECTED,
             rejection_reason=reason,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC).replace(tzinfo=None),
         )
 
         db = await get_database()

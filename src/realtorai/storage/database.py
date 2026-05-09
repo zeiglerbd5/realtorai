@@ -2,7 +2,7 @@
 
 import json
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -188,7 +188,7 @@ class Database:
                     related_email_id,
                     related_contact,
                     related_transaction,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 ),
             )
         logger.info("task_created", task_id=task_id, task_type=task_type)
@@ -238,7 +238,7 @@ class Database:
                 (
                     status,
                     json.dumps(approval_action) if approval_action else None,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     task_id,
                 ),
             )
@@ -290,7 +290,7 @@ class Database:
                 INSERT OR REPLACE INTO processed_emails (email_id, thread_id, task_id, processed_at)
                 VALUES (?, ?, ?, ?)
                 """,
-                (email_id, thread_id, task_id, datetime.utcnow().isoformat()),
+                (email_id, thread_id, task_id, datetime.now(UTC).replace(tzinfo=None).isoformat()),
             )
 
     # -------------------------------------------------------------------------
@@ -316,7 +316,7 @@ class Database:
                 INSERT OR REPLACE INTO kv_store (key, value, updated_at)
                 VALUES (?, ?, ?)
                 """,
-                (key, value, datetime.utcnow().isoformat()),
+                (key, value, datetime.now(UTC).replace(tzinfo=None).isoformat()),
             )
 
     # -------------------------------------------------------------------------
@@ -357,7 +357,7 @@ class Database:
                     price,
                     status,
                     room_id,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 ),
             )
             client_id = cursor.lastrowid
@@ -442,7 +442,7 @@ class Database:
             values.append(value)
 
         set_parts.append("updated_at = ?")
-        values.append(datetime.utcnow().isoformat())
+        values.append(datetime.now(UTC).replace(tzinfo=None).isoformat())
         values.append(client_id)
 
         async with self.transaction() as conn:
@@ -542,7 +542,7 @@ class Database:
                 INSERT INTO client_notes (client_id, content, source, created_at)
                 VALUES (?, ?, ?, ?)
                 """,
-                (client_id, content, source, datetime.utcnow().isoformat()),
+                (client_id, content, source, datetime.now(UTC).replace(tzinfo=None).isoformat()),
             )
             note_id = cursor.lastrowid
 
@@ -606,7 +606,7 @@ class Database:
                     description,
                     waiting_on,
                     due_date,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 ),
             )
             item_id = cursor.lastrowid
@@ -674,7 +674,7 @@ class Database:
                 SET status = ?, resolved_at = ?
                 WHERE id = ?
                 """,
-                (status, datetime.utcnow().isoformat(), item_id),
+                (status, datetime.now(UTC).replace(tzinfo=None).isoformat(), item_id),
             )
         logger.info("pending_item_resolved", item_id=item_id, status=status)
 
@@ -707,7 +707,7 @@ class Database:
                     email,
                     phone,
                     transaction_type,
-                    datetime.utcnow().isoformat(),
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 ),
             )
             lead_id = cursor.lastrowid
@@ -767,7 +767,7 @@ class Database:
                     updated_at = ?
                 WHERE id = ? AND status = 'lead'
                 """,
-                (property_address, datetime.utcnow().isoformat(), lead_id),
+                (property_address, datetime.now(UTC).replace(tzinfo=None).isoformat(), lead_id),
             )
         logger.info("lead_converted_to_client", lead_id=lead_id)
 

@@ -306,7 +306,7 @@ Walk through your reasoning step by step."""
         Returns:
             Complete EmailProposal for the approval queue
         """
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         formatted = format_email_for_display(email)
 
@@ -466,7 +466,7 @@ Walk through your reasoning step by step."""
             email_id=email.get("id", ""),
             thread_id=conversation_id,
             received_at=datetime.fromisoformat(
-                email.get("receivedDateTime", datetime.utcnow().isoformat())
+                email.get("receivedDateTime", datetime.now(UTC).replace(tzinfo=None).isoformat())
             ),
             classification=classification,
             reasoning=reasoning,
