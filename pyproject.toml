@@ -8,10 +8,7 @@ license = { text = "All Rights Reserved" }
 authors = [{ name = "Brett Zeigler" }]
 
 dependencies = [
-    # MLX for local inference
-    "mlx>=0.21.0",
-    "mlx-lm>=0.19.0",
-    # Claude API for workflow automation (extraction, form fill, verification)
+    # Claude API — chat copilot, classification, extraction, verification
     "anthropic>=0.116.0",
     # Web framework
     "fastapi>=0.115.0",
@@ -42,6 +39,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional on-device fallback model (Apple Silicon only)
+local = [
+    "mlx>=0.21.0",
+    "mlx-lm>=0.19.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",

@@ -1,405 +1,290 @@
 # RealtorAI
 
-Local-first AI copilot for real estate professionals in Maine.
+[![CI](https://github.com/zeiglerbd5/realtorai/actions/workflows/ci.yml/badge.svg)](https://github.com/zeiglerbd5/realtorai/actions/workflows/ci.yml)
 
-## Overview
+An AI transaction coordinator for a working Maine real-estate team.
 
-RealtorAI is an AI assistant that runs entirely on your Mac, using Apple Silicon's MLX framework for fast, private inference. It helps real estate agents with:
+I work as the transaction coordinator (TC) for a listing team at a Maine
+brokerage. This project automates the TC workload — new-client intake →
+DocuSign Transaction Room + task lists → auto-filled state forms → public
+records (tax map, tax card, flood determination, recorded deed) → draft MLS
+listing — under two constraints that shaped the whole design:
 
-- **Email Triage** - Automatically prioritizes and drafts responses to client emails
-- **Transaction Workflow Automation** - New-client paperwork → DocuSign Transaction Room,
-  auto-filled Maine forms, draft MLS listing, deed review, and public-records pulls
-- **Calendar Management** - Schedules showings and appointments
-- **Task Tracking** - Manages follow-ups and action items
-- **Maine Real Estate Knowledge** - Answers questions about local regulations and practices
+1. **The enterprise APIs are approval-locked.** DocuSign Rooms needs broker
+   account approval; the Maine MLS (Flexmls/Spark) needs MLS approval. So the
+   integrations are built against the real API surfaces with local simulators
+   behind the same client interface — flipping two env vars is the entire
+   live cutover.
+2. **Nothing runs without a human.** The approval gate is architecture, not
+   prompting: the AI agent has no execution tools, so "human in the loop"
+   is a property the model cannot talk its way out of.
 
-Chat and email triage run entirely on-device via MLX. The transaction
-workflows optionally use the Claude API with automatic model selection —
-and degrade gracefully to a fully offline demo without an API key.
+The AI components run on the Claude API with per-task model routing
+(Sonnet 5 for high-volume structured work, Opus 4.8 for verification and
+deed review) and were validated against real inbox traffic.
 
-## Requirements
-
-- macOS with Apple Silicon (M1/M2/M3/M4)
-- 16GB+ RAM (8B model) or 8GB+ RAM (3B model)
-- Python 3.11+
-- Microsoft 365 account (for Outlook integration)
-
-## Installation
-
-### 1. Clone and Setup
+## Five-minute tour (no API keys required)
 
 ```bash
-# Clone the repository
-git clone https://github.com/zeiglerbd5/realtorai.git
-cd realtorai
+git clone https://github.com/zeiglerbd5/realtorai.git && cd realtorai
+pip install -e ".[dev]"          # or: uv sync
 
-# Install with UV (recommended)
-uv sync
-
-# Or with pip
-pip install -e .
+pytest                           # 96 tests, fully offline, ~1 second
+python scripts/demo_listing_workflow.py --fresh   # full intake on the reference listing
+realtorai-web                    # → http://127.0.0.1:8421
 ```
 
-### 2. Download the Model
+Open the **Transactions** tab to browse the created room, task list, filled
+forms, workflow timeline, and draft MLS listing — all on the mock backends.
+With `ANTHROPIC_API_KEY` set, the chat copilot, intake classification,
+extraction, and verification go live.
 
-```bash
-# Download the 8B model (recommended for 16GB+ systems)
-python scripts/setup_model.py
+## The intake workflow
 
-# Or the smaller 3B model for 8-16GB systems
-python scripts/setup_model.py --model 3b
-```
-
-### 3. Configure Environment
-
-```bash
-# Copy the example environment file
-cp .env.example .env
-
-# Edit with your Microsoft Graph credentials
-# See Setup section below for details
-```
-
-### 4. Start the Application
-
-```bash
-# Start the web UI
-realtorai web
-
-# In a separate terminal, start the background daemon
-realtorai daemon --foreground
-```
-
-Open http://localhost:8421 in your browser.
-
-## Setup
-
-### Microsoft Graph (Outlook) Integration
-
-1. Go to [Azure Portal](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps)
-2. Register a new application
-3. Add redirect URI: `http://localhost:8421/callback`
-4. Grant API permissions:
-   - `Mail.Read`
-   - `Mail.Send`
-   - `Calendars.ReadWrite`
-5. Copy the Client ID to your `.env` file
-6. Visit http://localhost:8421/setup to complete OAuth flow
-
-## Usage
-
-### Web UI
-
-The web UI at http://localhost:8421 provides:
-
-- **Dashboard** - Overview of pending actions and system status
-- **Queue** - Review and approve AI-proposed actions
-- **Chat** - Direct interaction with the AI
-- **Setup** - Configure integrations
-
-### Approval Workflow
-
-RealtorAI never takes action without your approval:
-
-1. New email arrives → AI analyzes and drafts response
-2. Draft appears in your Queue → You review
-3. **Approve** - Send as-is
-4. **Edit** - Modify before sending
-5. **Reject** - Discard the proposal
-
-Every interaction trains the AI to match your style (stored locally for future fine-tuning).
-
-## Transaction Workflow Automation (DTR + MLS)
-
-The centerpiece workflow: a realtor signs a new client and emails the bot the
-paperwork; the bot runs the whole intake.
+A realtor signs a new client and the paperwork lands in the monitored inbox;
+the system proposes the intake and — once a human approves — runs it:
 
 ```
 "Here's the new client's paperwork" (email + attachments)
     ↓
 Classify intake (listing vs. buyer)          Claude Sonnet
     ↓
+╔══ HUMAN APPROVAL GATE ═════════════════════════════════════╗
+║  Proposal waits in the queue. The thread on the task is a  ║
+║  tool-calling agent that scopes the work; a regex-matched  ║
+║  go-word (or the Approve button) is the only trigger.      ║
+╚════════════════════════════════════════════════════════════╝
+    ↓
 Extract Master Information Document          Claude Sonnet → TransactionRecord
     ↓
 Verify extraction against source docs        Claude Opus (second-model audit)
     ↓
 Create DocuSign Transaction Room (DTR)       field data auto-synced
-    ├─ Add "New Listing" task list           from the Actions menu templates
+    ├─ Add "New Listing" task list           from the team's real checklists
     ├─ Attach Maine forms                    auto-filled from room field data
-    │    Exclusive Right to Sell · Brokerage Relationship (MREC #3)
     ├─ File signed paperwork into the room
     └─ Start property disclosures            waits on client, doesn't block
     ↓
-Create draft MLS listing (Maine Listings)    agent reviews + publishes in Flexmls
+Create draft MLS listing                     gated by the 49-required-field check
     ↓
-Pull tax map (parcel pin) · tax card · FEMA flood map
-    │    flood determination is LIVE: Census geocoder + FEMA NFHL
-    │    → zone, SFHA flag, FIRM panel + pinned map composite (~3s)
+Pull tax map (parcel pin) · tax card · FEMA flood map     live, keyless
     ↓
-Deed review — restrictions & rights of way   Claude Opus
+Deed review — restrictions & rights of way   Claude Opus reads the scanned PDF
     ↓
 Master doc updated with findings             internal only, never filed to DTR
 ```
 
-Buyer clients get the same intake with a "Buyer Agreement" task list and an
-auto-filled Exclusive Buyer Representation Agreement — no MLS activity.
+Buyer clients get the same intake with a Buyer Agreement task list and no
+MLS activity.
 
-### Try it
+## The approval gate is structural
+
+Every agent demo claims "human in the loop." Here it is enforced by what the
+model physically cannot call:
+
+- The copilot on each queue task has **read tools** (transaction status, MLS
+  readiness, playbook search, intake documents) and **scoping tools**
+  (`plan_workflow` queues work on the task; `attach_local_file` adds
+  paperwork). **Execution tools do not exist.**
+- Execution fires only on an explicit operator go — matched by a regex in
+  plain code (`orchestration/conversation.py`), or the Approve button. A
+  "no" rejects. The model never decides to run anything.
+- The dashboard chat is the same agent without a task pinned; its only write
+  tool files a *new proposal* into the queue, which faces the same gate.
+- `tests/test_dashboard_copilot.py` asserts the no-execution-tools invariant;
+  `tests/test_conversational_approval.py` proves propose/plan/reject run
+  nothing and that a go-word runs one workflow per planned item.
+
+A typical thread on a proposal (fictional data):
+
+> **Copilot:** This looks like a new listing — 14 Ledgeview Drive for Pat &
+> Sam Larson. Want me to start the listing workflow: DTR room + task list,
+> deed / tax card / tax map / flood pulls, and an MLS draft?
+>
+> **TC:** also add the Carvers at 3 Quarry Road, and check the playbook for
+> anything special on new listings
+>
+> **Copilot:** Both planned. Playbook says to add the lead agent to every new
+> room — that's set on both. Say the word and I'll run both.
+>
+> **TC:** go ahead
+>
+> **System:** Done — ran 2 workflows: listing — Larson: waiting on
+> disclosures; MLS 44/49 required fields ready …
+
+The conversation *scopes*; the go-word *executes*; the system reports back.
+
+An actual proposal in the queue (fictional demo data, live copilot):
+
+![Approval queue — conversational scoping on a proposal](docs/screenshots/queue.png)
+
+## Validated on real traffic
+
+The intake classifier was evaluated against the team's actual forwarded
+inbox (signed-envelope notifications, prose handoffs, offers, counters,
+earnest-money notices, staff broadcasts). The sweep surfaced a real recall
+gap — an agent's prose handoff with no attachments ("rooms already started,
+here are the two listings") classified as noise — the taxonomy was widened,
+and the fix is locked in by a runnable eval with fictionalized cases:
 
 ```bash
-python scripts/demo_listing_workflow.py --fresh   # 22 Penobscot St reference listing
-python scripts/demo_buyer_workflow.py             # buyer-side intake
+python scripts/eval_intake_classifier.py    # 10/10, needs ANTHROPIC_API_KEY
 ```
 
-Then open the **Transactions** tab in the web UI to browse the room contents,
-form auto-fill coverage, workflow timeline, and MLS draft.
-
-### Mock backends (until API approval lands)
-
-Rooms API access requires broker-account approval and Maine Listings
-(Flexmls/Spark) requires MLS approval — neither of which a TC can self-serve.
-The integrations are therefore built against the real API surfaces
-(`docusign/rooms.py` follows the official Rooms v2 spec; MLS submission the
-Spark `POST /listings` shape) with local simulators behind the same client
-interface:
-
-| Setting | `mock` (default) | `live` |
-|---|---|---|
-| `DOCUSIGN_BACKEND` | JSON-backed Rooms simulator seeded with Maine forms + agency team task lists | `demo.rooms.docusign.com` / production |
-| `MLS_BACKEND` | Local draft-listing store | Spark API |
-
-Flipping the env var is the entire migration — every workflow, test, and UI
-page runs identically on both.
-
-**Public records need no approval at all** — controlled by
-`PUBLIC_RECORDS_LIVE`, falling back to manual pull sheets on any failure:
-
-- **Flood** (live): Census geocoder → FEMA National Flood Hazard Layer →
-  USGS topo basemap. Flood zone, SFHA flag, FIRM panel, and a pinned
-  flood-map composite in ~3 seconds. Also available standalone:
-  `python scripts/flood_lookup.py "22 Penobscot St, Orono, ME"`.
-- **Tax map** (live): Maine GeoLibrary statewide parcel layer. Finds the
-  parcel by address (buffered point query as fallback), renders parcel
-  boundaries with lot labels, subject lot highlighted and pinned — and
-  cross-checks the state layer's Map/Block/Lot against the record's tax-card
-  map/lot, flagging mismatches for reconciliation.
-- **Tax card** (live): Vision Government Solutions (VGSI), the vendor platform
-  most Maine towns publish assessments through. Uses the site's JSON search
-  service + server-rendered parcel page — two HTTP requests, no browser.
-  Every card field is cross-checked against the record (assessed value,
-  map/lot, deed book/page, year built) with ⚠️ flags on mismatches. First
-  adapter in a vendor registry; non-VGSI towns fall back to the pull sheet.
-- **Recorded deeds** (live, Penobscot County): the Browntech ALIS registry
-  system turns out to be fully driveable with plain GETs — book/page search
-  → index record (grantor/grantee/type/town, cross-checked against the
-  record) → free-view PDF of the actual recorded deed. The Opus deed-review
-  step then reads the scan directly (no OCR needed) and flags restrictions,
-  rights of way, and chain-of-title issues. Standalone:
-  `python scripts/deed_lookup.py penobscot 16601 156 --review`. Other
-  Browntech counties are a base-URL away; Hancock (AcclaimWeb) and Waldo
-  need their own adapters.
-
-### Paperwork filling: capture once, verify once, fill everywhere
+## Paperwork filling: capture once, verify once, fill everywhere
 
 The LLM never transcribes values into forms. Sonnet extracts the paperwork
 into the canonical `TransactionRecord` once; Opus verifies it once; after
 that every destination is a deterministic Python mapping — DocuSign room
-field data (forms auto-fill in Rooms), the Spark/MLS payload, the master
-info document, and the **Transaction Worksheet**, a genuine fillable PDF
-filled field-by-field with pypdf (`documents/tw_filler.py`), Room ID join
-key included. Deterministic fill means a price or deadline can never be
-hallucinated in transit, and re-syncs are free.
+field data (forms auto-fill in Rooms), the MLS payload, the master info
+document, and the agency's fillable PDFs filled field-by-field with pypdf.
+Deterministic fill means a price or deadline can never be hallucinated in
+transit, and re-syncs are free.
 
-### Automatic model selection
+The MLS side is gated by `schemas/mls_required.py` — the 49 fields Maine
+Listings requires, exactly, asserted by test. The readiness check
+("44/49 ready; missing: …") feeds the master document, the workflow status,
+and the copilot's answers.
+
+## Automatic model selection
 
 | Task | Tier | Default model |
 |---|---|---|
-| Intake classification, extraction, form fill, remarks drafting | Standard | `claude-sonnet-5` |
+| Chat copilot, intake classification, extraction, form fill, drafting | Standard | `claude-sonnet-5` |
 | Extraction verification, deed review | Review | `claude-opus-4-8` |
 
-Configured via `CLAUDE_MODEL_STANDARD` / `CLAUDE_MODEL_REVIEW`. Without an
-`ANTHROPIC_API_KEY`, LLM steps skip with a note and everything else runs.
+Configured via `CLAUDE_MODEL_STANDARD` / `CLAUDE_MODEL_REVIEW`
+(`inference/model_router.py`). Without an `ANTHROPIC_API_KEY`, LLM steps
+skip with a note and everything else — workflows, mocks, UI, tests — runs.
 
-### CLI Commands
+## Mock backends behind the live client interfaces
 
-```bash
-# Start web server
-realtorai web [--port 8421] [--reload]
+| Setting | `mock` (default) | `live` |
+|---|---|---|
+| `DOCUSIGN_BACKEND` | JSON-backed Rooms simulator seeded with Maine forms + the team's real task-list templates | Rooms API v2 |
+| `MLS_BACKEND` | Local draft-listing store | Spark API |
 
-# Start background daemon
-realtorai daemon [--foreground] [--poll-interval 60]
+Every workflow, test, and UI page runs identically on both; the simulators
+implement the documented API shapes (Rooms v2, Spark `POST /listings`).
 
-# Check system status
-realtorai status
+The reference listing after intake — workflow timeline, per-form auto-fill
+coverage, and the room with the team's real task-list template:
 
-# Run setup wizard
-realtorai setup [--model 8b|3b]
+![Transaction detail — workflow timeline and mock room](docs/screenshots/transaction-detail.png)
+
+## Public records: live, keyless, cross-checked
+
+No approvals needed here — `PUBLIC_RECORDS_LIVE` controls it, falling back
+to manual pull sheets on any failure:
+
+- **Flood** — Census geocoder → FEMA National Flood Hazard Layer → USGS topo
+  basemap: flood zone, SFHA flag, FIRM panel, and a pinned map composite in
+  ~3s. `python scripts/flood_lookup.py "22 Penobscot St, Orono, ME"`
+- **Tax map** — Maine GeoLibrary statewide parcel layer; parcel found by
+  address (buffered point query fallback), boundaries rendered with the
+  subject lot highlighted, and the state Map/Block/Lot cross-checked against
+  the record.
+- **Tax card** — Vision Government Solutions (VGSI), the assessment platform
+  most Maine towns publish through. The ASP.NET site hides a JSON search
+  service; two HTTP requests replace a browser session. Every card field is
+  cross-checked against the record with flags on mismatches.
+- **Recorded deeds** — the county registry (Browntech ALIS) turns out to be
+  fully driveable with plain GETs: book/page search → grantor/grantee index
+  → free-view PDF of the recorded deed. Opus then reads the scan directly
+  (no OCR) and flags restrictions, rights of way, and chain-of-title issues.
+  `python scripts/deed_lookup.py penobscot 16601 156 --review`
+
+Each fetched value can **fill** an empty record field but never overwrite an
+extracted one — conflicts get flagged for the human instead.
+
+## Architecture
+
+```
+Monitored inbox (agency mail forwarded to a dedicated account)
+    ↓  daily reader task calls scripts/propose_intake.py
+Intake classifier (Sonnet)  →  WORKFLOW_KICKOFF proposal in the queue
+    ↓  conversational scoping (tool-calling copilot)
+    ↓  operator go-word / Approve            ← the structural gate
+Workflow engine (resumable steps, waiting-on-client states)
+    ├─ DocuSign Rooms client  (mock | live)
+    ├─ MLS client             (mock | live)
+    ├─ Public-records fetchers (live, keyless)
+    └─ Deterministic form fillers (pypdf)
+    ↓
+Execution results narrated back into the task thread
 ```
 
-## Project Structure
+Key components:
+
+- **Claude engine** (`inference/claude_engine.py`) — async SDK wrapper:
+  structured outputs via `messages.parse`, raw tool-calling turns for the
+  agent loop, PDF document input for deed review, task-based model routing.
+- **Copilot** (`orchestration/copilot.py`) — one agent core, two modes
+  (queue-task thread / dashboard chat) with mode-specific tool registries.
+- **Conversation gate** (`orchestration/conversation.py`) — go/no-go in
+  plain code; file paths in a reply are attached before execution, and a
+  missing path blocks the run.
+- **Workflow engine** (`workflows/`) — resumable step pipeline; a step can
+  wait on the client without blocking the rest.
+- **Approval queue** (`orchestration/`) — SQLite-backed proposals with an
+  audit trail; every decision is logged as feedback for future fine-tuning.
+- **Optional local fallback** — a few structured helpers can run on an MLX
+  model when no API key is configured (`pip install -e ".[local]"`,
+  Apple Silicon only). The copilot and workflows are Claude-native.
+
+## Project structure
 
 ```
-realtorai/
-├── src/realtorai/
-│   ├── cli.py / daemon.py / main.py    # Entry points
-│   ├── agents/          # AI agent implementations
-│   ├── config/          # Configuration management
-│   ├── documents/       # Generated document templates (e.g., buyer agency)
-│   ├── inference/       # MLX inference + structured extraction
-│   ├── integrations/    # External service adapters
-│   │   ├── graph/       # Microsoft Graph (Outlook, Calendar)
-│   │   ├── spark/       # Spark / FlexMLS API + buyer alerts
-│   │   ├── docusign/    # DocuSign Rooms
-│   │   ├── matterport/  # Matterport tour ingest
-│   │   └── web/         # Web search
-│   ├── orchestration/   # Task queue and human-in-loop approval
-│   ├── rag/             # ChromaDB knowledge base + retrieval
-│   ├── schemas/         # Pydantic data models
-│   ├── storage/         # SQLite + macOS Keychain
-│   ├── transactions/    # Contract-to-close tracking
-│   └── ui/              # FastAPI + Jinja2 + HTMX web app
-│       ├── routes/      # API and HTML endpoints
-│       ├── static/      # CSS / JavaScript
-│       └── templates/   # Jinja2 HTML
-├── scripts/             # Setup and utility scripts
-├── tests/               # Test suite
-└── data/                # Local data (gitignored)
-    ├── realtorai.db     # SQLite database
-    ├── chroma/          # Vector store
-    └── logs/            # Feedback logs for training
+src/realtorai/
+├── agents/          # Email triage agents
+├── config/          # Pydantic settings (env-driven)
+├── documents/       # Master info doc + deterministic PDF form fillers
+├── inference/       # Claude engine, model router, extraction; MLX fallback
+├── integrations/    # docusign/ (Rooms v2 + mock), spark/ (MLS + mock),
+│                    # graph/ (Outlook), fema_flood, maine_parcels,
+│                    # vgsi_tax_card, registry/ (county deeds)
+├── orchestration/   # queue, approval loop, copilot agent, conversation gate
+├── rag/             # ChromaDB knowledge base
+├── schemas/         # TransactionRecord, MLS 49-field gate, tasks
+├── storage/         # SQLite (aiosqlite), transaction envelopes, Keychain
+├── workflows/       # engine, listing/buyer intake, enrichment, email trigger
+└── ui/              # FastAPI + Jinja2 + HTMX dashboard
 ```
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=realtorai
-
-# Run specific test file
-pytest tests/test_schemas.py
+pytest                  # offline suite (mock backends, no keys)
+ruff check .            # lint
 ```
 
-### Code Style
+CI runs the suite on every push (`.github/workflows/ci.yml`) — on Linux,
+which works because the offline suite has no Apple-only dependencies.
 
-```bash
-# Format code
-ruff format .
+## Privacy
 
-# Lint
-ruff check .
+All data lives on local disk (SQLite + JSON envelopes under `data/`, which
+is gitignored). OAuth tokens go to the macOS Keychain. With an API key
+configured, LLM calls go to the Anthropic API; nothing else leaves the
+machine. This public repository is fully anonymized — no client names,
+agent identities, or agency-internal forms.
 
-# Type check
-mypy src/realtorai
-```
+## Status & roadmap
 
-### Development Mode
+Working today (on mock backends where noted): listing + buyer intake
+workflows, conversational approval queue, dashboard copilot, live public
+records for Penobscot-county properties, deterministic form filling, MLS
+readiness gating, email-intake proposals, 96-test offline suite.
 
-```bash
-# Run web server with auto-reload
-realtorai web --reload
+Next: live Rooms/Spark cutover when broker + MLS approval lands; more
+county registry adapters (Hancock/AcclaimWeb, Waldo); under-contract
+workflow (P&S extraction, deadline tracking); calendar actions; LoRA
+fine-tuning on the accumulated approval feedback.
 
-# Run daemon in foreground for debugging
-realtorai daemon --foreground
-```
-
-## Architecture
-
-### Core Loop
-
-```
-Email arrives
-    ↓
-Daemon polls Graph API
-    ↓
-Email Agent classifies & drafts
-    ↓
-Task added to Queue
-    ↓
-Agent reviews in Web UI
-    ↓
-Approve / Edit / Reject
-    ↓
-Action executed via integrations
-    ↓
-Feedback logged for training
-```
-
-### Key Components
-
-- **Inference Engine** - MLX wrapper for Llama 3.1 8B with structured output
-- **Email Agent** - Specialized agent for email triage and response
-- **Task Queue** - SQLite-backed queue for pending approvals
-- **Approval Loop** - Human-in-the-loop confirmation system
-- **RAG Knowledge Base** - ChromaDB store for ingested domain documents (NAR Code of Ethics, Maine RE laws, etc.) augmented into chat and email drafts
-- **MLS Integration** - Spark / FlexMLS API for listings, comps, and market stats with browser-based OAuth
-- **Transaction Tracker** - Contract-to-close workflow with DocuSign Rooms and document template generation
-- **Workflow Engine** - Resumable step-based automation (rooms, forms, MLS drafts) with waiting-on-client states
-- **Claude Engine** - Cloud inference for transaction workflows with task-based model routing (Sonnet for structured work, Opus for verification/deed review)
-- **Web Search** - DuckDuckGo tool for grounding responses in current news
-- **Feedback Logger** - Captures decisions for future RL fine-tuning
-
-## Privacy & Security
-
-- **Local-first Processing** - Chat and email triage run on-device; only the
-  transaction workflows call the Claude API (opt-in via `ANTHROPIC_API_KEY`)
-- **Secure Token Storage** - OAuth tokens stored in macOS Keychain
-- **Encrypted Database** - SQLite with application-level encryption
-- **No Telemetry** - No data sent anywhere without explicit action
-
-## Roadmap
-
-See [PROGRESS.md](PROGRESS.md) for the detailed development tracker.
-
-### Phase 1: Email Triage MVP — complete
-- [x] MLX inference engine with structured output
-- [x] Email classification + draft response generation
-- [x] Web UI dashboard with approval queue
-- [x] Microsoft Graph OAuth + Keychain token storage
-- [x] Background daemon for email polling
-- [x] Feedback logging for future fine-tuning
-
-### Phase 2: Knowledge & Style — in progress
-- [x] ChromaDB RAG knowledge base (NAR ethics, Maine RE laws ingested)
-- [x] Streaming chat (CLI + dashboard SSE)
-- [x] Web search via DuckDuckGo (no API key)
-- [x] Spark / FlexMLS API integration (search, comps, market stats)
-- [ ] LoRA fine-tuning for personal communication style
-- [ ] iMessage integration
-
-### Phase 3: Transactions & Listings — in progress
-- [x] Transaction tracker (contract-to-close workflow)
-- [x] DocuSign Rooms integration
-- [x] Matterport tour ingest (email + zip download)
-- [x] Document template system (e.g., buyer agency agreement)
-- [x] Maine agency agreement gating
-- [x] Buyer alerts via Spark
-- [x] Listing + buyer intake workflows (paperwork → room + forms + MLS draft)
-- [x] Mock DTR / MLS backends behind the live client interfaces
-- [x] Claude API engine with automatic model selection (Sonnet/Opus)
-- [x] Deed review + public-records pull sheets (tax map, tax card, flood map)
-- [ ] Live Rooms / Spark cutover once broker + MLS API approval lands
-- [ ] Buyer-listing matching engine
-- [ ] zipForm integration
-
-### Phase 4: Mobile & Polish — future
-- [ ] Mobile notifications / companion app
-- [ ] Voice transcription
-- [ ] Dashboard UI refinements
-
-### Phase 5: Cloud — future
-- [ ] AWS-hosted deployment for clients without Apple Silicon
+See [PROGRESS.md](PROGRESS.md) for the detailed tracker.
 
 ## License
 
 All rights reserved. This source is published for portfolio review and
 evaluation only — no use, copying, modification, or redistribution is
 permitted without written permission. See [LICENSE](LICENSE).
-
-## Support
-
-For issues and feature requests, please open an issue on GitHub.
