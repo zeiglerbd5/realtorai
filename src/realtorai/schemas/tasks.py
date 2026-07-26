@@ -20,6 +20,7 @@ class TaskType(str, Enum):
     TRANSACTION_UPDATE = "transaction_update"
     EXTRACTION_MLS = "extraction_mls"
     EXTRACTION_TRANSACTION = "extraction_transaction"
+    WORKFLOW_KICKOFF = "workflow_kickoff"  # New-client intake detected; approve to run workflow
     CUSTOM = "custom"
 
 

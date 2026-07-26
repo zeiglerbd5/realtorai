@@ -43,14 +43,23 @@ def load_paperwork(paths: list[Path]) -> list[PaperworkDocument]:
 
 
 def paperwork_from_bytes(name: str, content: bytes) -> PaperworkDocument:
-    """Build a PaperworkDocument from raw bytes (email attachments)."""
+    """Build a PaperworkDocument from raw bytes (email attachments).
+
+    A corrupt or scan-only PDF yields empty text rather than an exception —
+    the document still gets filed to the room, and extraction works from
+    whatever text the other documents provide.
+    """
     if name.lower().endswith(".pdf"):
         import io
 
         from pypdf import PdfReader
 
-        reader = PdfReader(io.BytesIO(content))
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        try:
+            reader = PdfReader(io.BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as e:
+            logger.warning("paperwork_pdf_unreadable", name=name, error=str(e))
+            text = ""
     else:
         text = content.decode("utf-8", errors="replace")
     return PaperworkDocument(name=name, text=text)
@@ -79,11 +88,16 @@ class IntakeClassification(BaseModel):
 
 
 CLASSIFY_SYSTEM = """You triage inbound email for a Maine real-estate transaction \
-coordinator. Decide whether the email is a realtor handing off a NEW CLIENT'S \
-signed paperwork, and which side. "new_listing_client" = seller signed an \
-Exclusive Right to Sell (listing side). "new_buyer_client" = buyer signed an \
-Exclusive Buyer Representation Agreement. Anything else — ongoing deal chatter, \
-vendor mail, marketing — is "other"."""
+coordinator. Decide whether the email is a realtor handing off a NEW CLIENT, and \
+which side. The handoff takes two forms: the client's signed paperwork (e.g. a \
+completed DocuSign envelope with an ERTS or buyer agreement attached), or a prose \
+handoff from an agent naming the new client and their property — possibly with no \
+attachments, and rooms/documents may already exist. "new_listing_client" = seller \
+side (Exclusive Right to Sell). "new_buyer_client" = buyer side (Exclusive Buyer \
+Representation Agreement). Anything else — activity on deals already in progress \
+(offers, counters, earnest money, disclosures, showings), office broadcasts, \
+vendor mail, marketing — is "other". If one email hands off multiple new clients, \
+put the first in client_name/property_address and list the rest in reasoning."""
 
 
 async def classify_intake_email(
@@ -129,12 +143,18 @@ defects, heat systems, lead paint status) into `comments`."""
 async def extract_transaction_record(
     documents: list[PaperworkDocument],
     side_hint: Literal["Listing", "Buyer"] | None = None,
+    operator_notes: str | None = None,
 ) -> TransactionRecord:
     """Extract the canonical record from intake paperwork (STANDARD tier)."""
     engine = get_claude_engine()
     hint = f"\n\nRepresentation side hint from intake email: {side_hint}" if side_hint else ""
+    notes = (
+        f"\n\nOperator notes (from the human TC — authoritative):\n{operator_notes}"
+        if operator_notes
+        else ""
+    )
     prompt = (
-        "Extract the transaction record from these documents." + hint + "\n\n"
+        "Extract the transaction record from these documents." + hint + notes + "\n\n"
         + _documents_block(documents)
     )
     record = await engine.generate_structured(

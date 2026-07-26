@@ -24,6 +24,7 @@ class LLMTask(str, Enum):
     EXTRACT = "extract"          # paperwork/PDF text -> TransactionRecord
     FORM_FILL = "form_fill"      # record -> per-form field payloads
     CLASSIFY = "classify"        # email intent detection (new listing / buyer / other)
+    CHAT = "chat"                # scoping conversation on queue tasks (tool-calling agent)
     DRAFT = "draft"              # listing remarks, client-facing email text
     VERIFY = "verify"            # cross-check extraction against source docs
     DEED_REVIEW = "deed_review"  # restrictions / rights of way / easements

@@ -47,6 +47,44 @@ async def approve_task(request: Request, task_id: str) -> HTMLResponse:
         )
 
 
+@router.post("/{task_id}/reply", response_class=HTMLResponse)
+async def reply_to_task(
+    request: Request,
+    task_id: str,
+    reply: str = Form(...),
+) -> HTMLResponse:
+    """Free-text conversational reply on a pending task.
+
+    The reply is interpreted (approve / reject / just talking); approve runs
+    the task with any files or instructions the reply carried, anything else
+    grows the thread and the task stays pending.
+    """
+    from realtorai.orchestration.conversation import handle_reply
+
+    outcome, message = await handle_reply(task_id, reply)
+
+    if outcome in ("approved", "rejected", "failed", "error"):
+        return templates.TemplateResponse(
+            request,
+            "components/action_result.html",
+            {
+                "success": outcome in ("approved", "rejected"),
+                "message": message,
+                "task_id": task_id,
+            },
+        )
+
+    # Still pending — re-render the card with the grown thread
+    task = await task_queue.get_task(task_id)
+    if not task:
+        return HTMLResponse(content="Task not found", status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "components/task_detail.html",
+        {"task": task},
+    )
+
+
 @router.post("/{task_id}/edit", response_class=HTMLResponse)
 async def edit_task(
     request: Request,
