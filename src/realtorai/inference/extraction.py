@@ -11,7 +11,9 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
+from realtorai.inference.claude_engine import get_claude_engine
 from realtorai.inference.engine import get_engine
+from realtorai.inference.model_router import LLMTask
 from realtorai.inference.prompts import (
     get_email_extraction_prompt,
     get_mls_extraction_prompt,
@@ -19,14 +21,19 @@ from realtorai.inference.prompts import (
 )
 from realtorai.inference.tools import EXTRACTION_TOOLS
 from realtorai.integrations.spark.mls_feeder import get_mls_feeder, update_mls_feeder
-from realtorai.schemas.extraction import ExtractionProposal, ExtractionType, FieldChange, PendingItemMatch
+from realtorai.schemas.extraction import (
+    ExtractionProposal,
+    ExtractionType,
+    FieldChange,
+    PendingItemMatch,
+)
 from realtorai.storage.database import get_database
 from realtorai.transactions import (
-    get_transaction,
-    update_transaction,
-    set_milestone,
-    mark_document_received,
     add_transaction_note,
+    get_transaction,
+    mark_document_received,
+    set_milestone,
+    update_transaction,
 )
 
 logger = structlog.get_logger()
@@ -186,8 +193,6 @@ async def classify_email_content(content: str) -> ExtractionResult:
     - both: Contains both types
     - neither: No extractable structured data
     """
-    engine = await get_engine()
-
     classification_prompt = """Analyze this email/document and classify what structured data it contains.
 
 Content:
@@ -201,11 +206,21 @@ Classify as:
 
 Also rate your confidence (high/medium/low) and provide a brief summary."""
 
-    result = await engine.generate_structured(
-        prompt=classification_prompt.format(content=content[:4000]),  # Truncate very long content
-        output_schema=ExtractionResult,
-        system_prompt="You are a real estate data classifier. Be precise.",
-    )
+    claude = get_claude_engine()
+    if claude.available:
+        result = await claude.generate_structured(
+            classification_prompt.format(content=content[:4000]),
+            ExtractionResult,
+            task=LLMTask.CLASSIFY,
+            system_prompt="You are a real estate data classifier. Be precise.",
+        )
+    else:
+        engine = await get_engine()
+        result = await engine.generate_structured(
+            prompt=classification_prompt.format(content=content[:4000]),
+            output_schema=ExtractionResult,
+            system_prompt="You are a real estate data classifier. Be precise.",
+        )
 
     logger.info(
         "email_classified",
@@ -221,15 +236,21 @@ async def extract_mls_data(content: str) -> MLSExtraction:
 
     Used for seller clients to populate the MLS feeder.
     """
-    engine = await get_engine()
+    claude = get_claude_engine()
+    if claude.available:
+        return await claude.generate_structured(
+            f"Extract MLS listing data from this content:\n\n{content[:4000]}",
+            MLSExtraction,
+            task=LLMTask.EXTRACT,
+            system_prompt=get_mls_extraction_prompt(),
+        )
 
-    result = await engine.generate_structured(
+    engine = await get_engine()
+    return await engine.generate_structured(
         prompt=f"Extract MLS listing data from this content:\n\n{content[:4000]}",
         output_schema=MLSExtraction,
         system_prompt=get_mls_extraction_prompt(),
     )
-
-    return result
 
 
 async def extract_transaction_data(content: str) -> TransactionExtraction:
@@ -237,15 +258,21 @@ async def extract_transaction_data(content: str) -> TransactionExtraction:
 
     Used for both buyer and seller clients to populate the transaction tracker.
     """
-    engine = await get_engine()
+    claude = get_claude_engine()
+    if claude.available:
+        return await claude.generate_structured(
+            f"Extract transaction data from this content:\n\n{content[:4000]}",
+            TransactionExtraction,
+            task=LLMTask.EXTRACT,
+            system_prompt=get_transaction_extraction_prompt(),
+        )
 
-    result = await engine.generate_structured(
+    engine = await get_engine()
+    return await engine.generate_structured(
         prompt=f"Extract transaction data from this content:\n\n{content[:4000]}",
         output_schema=TransactionExtraction,
         system_prompt=get_transaction_extraction_prompt(),
     )
-
-    return result
 
 
 async def apply_mls_extraction(
