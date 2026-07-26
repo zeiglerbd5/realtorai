@@ -172,8 +172,128 @@ class ApprovalLoop:
             await self._execute_extraction(task)
         elif task.task_type == TaskType.DOCUMENT_RECEIVED:
             await self._execute_document_received(task)
+        elif task.task_type == TaskType.WORKFLOW_KICKOFF:
+            await self._execute_workflow_kickoff(task)
         else:
             logger.warning("unknown_task_type", task_type=task.task_type.value)
+
+    async def _execute_workflow_kickoff(self, task: Task) -> None:
+        """Run the planned work a human just approved — one workflow per plan item.
+
+        Loads the saved intake bundle (email + attachments), extracts the
+        transaction record per plan item (Claude, unless a prebuilt record was
+        supplied in the proposal — demo/offline path), runs each workflow,
+        then writes execution results + a narration message back onto the
+        task's thread so the operator sees what the machinery did.
+        """
+        from pathlib import Path
+
+        from realtorai.inference.claude_engine import get_claude_engine
+        from realtorai.schemas.mls_required import readiness
+        from realtorai.schemas.transaction import TransactionRecord
+        from realtorai.workflows.buyer import start_buyer_workflow
+        from realtorai.workflows.intake import extract_transaction_record, load_paperwork
+        from realtorai.workflows.listing import start_listing_workflow
+
+        proposal = task.proposal_data
+        intake_dir = Path(proposal.get("intake_dir", ""))
+        planned = proposal.get("planned_actions") or [
+            {
+                "side": proposal.get("side"),
+                "client_name": proposal.get("client_name"),
+                "property_address": None,
+                "note": None,
+            }
+        ]
+        if not intake_dir.exists() or any(
+            s.get("side") not in ("listing", "buyer") for s in planned
+        ):
+            raise ValueError(f"Invalid workflow kickoff proposal: {planned}, dir={intake_dir}")
+
+        attachment_paths = [
+            p for p in sorted(intake_dir.iterdir()) if p.name != "email.json"
+        ]
+        documents = load_paperwork(attachment_paths)
+        paperwork_files = [(p.name, p.read_bytes()) for p in attachment_paths]
+        engine_available = get_claude_engine().available
+
+        results: list[dict] = []
+        for item in planned:
+            side = item["side"]
+            prebuilt = item.get("record") or proposal.get("record")
+            if prebuilt:
+                record = TransactionRecord.model_validate(prebuilt)
+            elif engine_available:
+                focus_bits = [
+                    proposal.get("operator_instructions"),
+                    item.get("note"),
+                ]
+                if item.get("client_name") or item.get("property_address"):
+                    focus_bits.append(
+                        "This record is specifically for "
+                        f"{item.get('client_name') or 'the client'} at "
+                        f"{item.get('property_address') or 'their property'} — "
+                        "ignore other clients/properties mentioned in the documents."
+                    )
+                record = await extract_transaction_record(
+                    documents,
+                    side_hint="Listing" if side == "listing" else "Buyer",
+                    operator_notes="\n".join(b for b in focus_bits if b) or None,
+                )
+            else:
+                raise ValueError(
+                    "Cannot extract the transaction record offline — configure "
+                    "ANTHROPIC_API_KEY or supply a prebuilt record in the proposal"
+                )
+
+            start = start_listing_workflow if side == "listing" else start_buyer_workflow
+            envelope = await start(
+                record,
+                documents=documents,
+                paperwork_files=paperwork_files,
+                client_name=item.get("client_name") or proposal.get("client_name"),
+            )
+
+            waiting = [
+                s.get("title") or s.get("key") or "?"
+                for s in (envelope.workflow or {}).get("steps", [])
+                if s.get("status") == "waiting"
+            ]
+            ready, total, _ = readiness(envelope.record)
+            results.append(
+                {
+                    "slug": envelope.slug,
+                    "side": side,
+                    "client_name": item.get("client_name"),
+                    "workflow_status": (envelope.workflow or {}).get("status"),
+                    "waiting_on": waiting,
+                    "mls_ready": f"{ready}/{total}" if side == "listing" else None,
+                }
+            )
+            logger.info(
+                "workflow_kickoff_executed",
+                task_id=task.id,
+                side=side,
+                slug=envelope.slug,
+                status=(envelope.workflow or {}).get("status"),
+            )
+
+        # Narrate the run back into the task's thread
+        lines = [f"Done — ran {len(results)} workflow{'s' if len(results) != 1 else ''}:"]
+        for r in results:
+            bits = [f"{r['side']} — {r['client_name'] or r['slug']}: {r['workflow_status']}"]
+            if r["mls_ready"]:
+                bits.append(f"MLS {r['mls_ready']} required fields ready")
+            if r["waiting_on"]:
+                bits.append(f"waiting on {', '.join(r['waiting_on'])}")
+            lines.append("• " + "; ".join(bits))
+        updated = dict(proposal)
+        updated["execution_results"] = results
+        conversation = list(updated.get("conversation", []))
+        conversation.append({"role": "agent", "text": "\n".join(lines)})
+        updated["conversation"] = conversation
+        db = await get_database()
+        await db.update_task_data(task.id, updated, details=task.details)
 
     async def _execute_email_response(self, task: Task) -> None:
         """Execute an email response task."""
@@ -204,12 +324,12 @@ class ApprovalLoop:
     async def _execute_extraction(self, task: Task) -> None:
         """Execute an extraction task (MLS or Transaction)."""
         from realtorai.inference.extraction import (
-            apply_mls_extraction,
-            apply_transaction_extraction,
             MLSExtraction,
             TransactionExtraction,
+            apply_mls_extraction,
+            apply_transaction_extraction,
         )
-        from realtorai.transactions import set_milestone, mark_document_received
+        from realtorai.transactions import mark_document_received, set_milestone
 
         proposal = task.proposal_data
         details = task.details

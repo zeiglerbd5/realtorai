@@ -168,6 +168,45 @@
     </div>
     {% endif %}
 
+    {% if task.proposal_data.get('planned_actions') %}
+    <div class="planned-work">
+        <span class="planned-label">Planned — runs on your word</span>
+        <ol class="planned-list">
+            {% for item in task.proposal_data.planned_actions %}
+            <li>
+                {{ item.side | title }} workflow
+                {% if item.client_name %}— {{ item.client_name }}{% endif %}
+                {% if item.property_address %}({{ item.property_address }}){% endif %}
+                {% if item.note %}<span class="planned-note">{{ item.note }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
+    {% if task.proposal_data.get('conversation') %}
+    <div class="task-thread">
+        {% for msg in task.proposal_data.conversation %}
+        <div class="thread-msg {{ msg.role }}">
+            <span class="thread-role">{{ 'Copilot' if msg.role == 'agent' else 'You' }}</span>
+            <p class="thread-text">{{ msg.text }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if task.status.value == 'pending' %}
+    <form class="task-reply"
+          hx-post="/actions/{{ task.id }}/reply"
+          hx-target="closest .task-card"
+          hx-swap="outerHTML">
+        <input type="text" name="reply"
+               placeholder="Reply — &quot;Yes, the signed ERTS is at ~/Documents/…&quot; or ask a question"
+               autocomplete="off" required>
+        <button class="btn btn-reply" type="submit">Send</button>
+    </form>
+    {% endif %}
+
     <div class="task-actions">
         <button class="btn btn-approve"
                 hx-post="/actions/{{ task.id }}/approve"

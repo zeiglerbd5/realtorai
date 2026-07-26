@@ -244,6 +244,39 @@ class Database:
             )
         logger.info("task_updated", task_id=task_id, status=status)
 
+    async def update_task_data(
+        self,
+        task_id: str,
+        proposal_data: dict,
+        details: dict | None = None,
+    ) -> None:
+        """Persist updated proposal_data (and optionally details) for a task.
+
+        Used by the conversational approval loop to grow a task's thread and
+        attach operator-supplied amendments before execution.
+        """
+        async with self.transaction() as conn:
+            if details is None:
+                await conn.execute(
+                    "UPDATE tasks SET proposal_data = ?, updated_at = ? WHERE id = ?",
+                    (
+                        json.dumps(proposal_data),
+                        datetime.now(UTC).replace(tzinfo=None).isoformat(),
+                        task_id,
+                    ),
+                )
+            else:
+                await conn.execute(
+                    "UPDATE tasks SET proposal_data = ?, details = ?, updated_at = ? WHERE id = ?",
+                    (
+                        json.dumps(proposal_data),
+                        json.dumps(details),
+                        datetime.now(UTC).replace(tzinfo=None).isoformat(),
+                        task_id,
+                    ),
+                )
+        logger.info("task_data_updated", task_id=task_id)
+
     def _row_to_task(self, row: aiosqlite.Row) -> dict:
         """Convert database row to task dict."""
         return {
@@ -825,3 +858,17 @@ async def get_database() -> Database:
         _database = Database(settings.db_path)
         await _database.connect()
     return _database
+
+
+async def close_database() -> None:
+    """Close and drop the singleton connection.
+
+    Call before process exit in CLIs/tests — aiosqlite's worker thread is
+    non-daemon, so an unclosed connection keeps the interpreter alive.
+    """
+    global _database
+    if _database is not None:
+        try:
+            await _database.close()
+        finally:
+            _database = None

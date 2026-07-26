@@ -94,6 +94,48 @@ class ClaudeEngine:
         )
         return text
 
+    async def chat_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]],
+        system_prompt: str | None = None,
+        task: LLMTask = LLMTask.CHAT,
+        max_tokens: int = 8000,
+    ) -> Any:
+        """One raw assistant turn with tool definitions. Returns the response.
+
+        The caller owns the agent loop — executing tool calls and appending
+        tool_result blocks (see orchestration/copilot.py). Thinking blocks in
+        the response content must be passed back verbatim on the next turn.
+        """
+        import anthropic
+
+        client = self._get_client()
+        model = model_for(task)
+        try:
+            response = await client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                thinking={"type": "adaptive"},
+                system=system_prompt or anthropic.NOT_GIVEN,
+                tools=tools,
+                messages=messages,
+            )
+        except anthropic.APIConnectionError as e:
+            raise ClaudeEngineError(f"Claude API unreachable: {e}") from e
+        except anthropic.APIStatusError as e:
+            raise ClaudeEngineError(f"Claude API error {e.status_code}: {e.message}") from e
+
+        logger.info(
+            "claude_chat_turn",
+            task=task.value,
+            model=model,
+            stop_reason=response.stop_reason,
+            output_tokens=response.usage.output_tokens,
+        )
+        return response
+
     async def generate_structured(
         self,
         prompt: str,

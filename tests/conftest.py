@@ -54,6 +54,12 @@ def offline_env(temp_dir: Path, monkeypatch) -> Generator[Path, None, None]:
     from realtorai.integrations.docusign.client import reset_docusign_client
     from realtorai.integrations.spark.mock import reset_mock_mls
 
+    def _close_db_singleton() -> None:
+        from realtorai.storage import database as database_module
+
+        if database_module._database is not None:
+            asyncio.run(database_module.close_database())
+
     monkeypatch.setenv("DATA_DIR", str(temp_dir))
     monkeypatch.setenv("DOCUSIGN_BACKEND", "mock")
     monkeypatch.setenv("MLS_BACKEND", "mock")
@@ -62,9 +68,11 @@ def offline_env(temp_dir: Path, monkeypatch) -> Generator[Path, None, None]:
     get_settings.cache_clear()
     reset_docusign_client()
     reset_mock_mls()
+    _close_db_singleton()  # a prior test's DB points at its own temp dir
 
     yield temp_dir
 
+    _close_db_singleton()  # aiosqlite's non-daemon thread would block exit
     get_settings.cache_clear()
     reset_docusign_client()
     reset_mock_mls()

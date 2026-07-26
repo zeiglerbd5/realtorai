@@ -1553,3 +1553,102 @@ a:hover {
     background: rgba(168, 85, 247, 0.15);
     color: var(--accent-purple);
 }
+
+/* Conversational approval thread */
+.task-thread {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.thread-msg {
+    padding: var(--spacing-xs) 0;
+}
+
+.thread-msg + .thread-msg {
+    border-top: 1px solid var(--border-subtle);
+}
+
+.thread-role {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.thread-msg.agent .thread-role {
+    color: var(--accent-blue);
+}
+
+.thread-text {
+    margin: 2px 0 0;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+.task-reply {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
+
+.task-reply input {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.task-reply input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.btn-reply {
+    background: var(--accent-blue);
+    color: #fff;
+}
+
+/* Task type badge for workflow kickoff */
+.task-type.workflow_kickoff {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green);
+}
+
+/* Planned work (scope queued by the copilot, runs on the operator's word) */
+.planned-work {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(34, 197, 94, 0.06);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: var(--radius-md);
+}
+
+.planned-label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent-green);
+    margin-bottom: var(--spacing-xs);
+}
+
+.planned-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.planned-note {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
