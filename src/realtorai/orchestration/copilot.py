@@ -1,22 +1,24 @@
-"""The scoping copilot — a tool-calling Sonnet agent behind each queue task.
+"""The scoping copilot — a tool-calling Sonnet agent for queue tasks and chat.
 
-The conversation on a WORKFLOW_KICKOFF task is a real agent chat, not a
-one-shot classifier. The agent can look things up (transactions, MLS
-readiness, the team playbook, intake documents) and SCOPE work by queueing planned
-workflows — but it can never execute them. The permission split is structural:
+Two modes share one agent core and one permission model:
 
-  READ tools     -> run inline during the chat turn
-  SCOPING tools  -> mutate only the task's planned work / intake bundle
-  EXECUTION      -> does not exist here. Planned work runs only when the
-                    operator gives the word (a regex-matched go in
-                    conversation.handle_reply, or the Approve button) —
-                    plain Python fires the machinery, never the model.
+  TASK mode      -> the thread on a WORKFLOW_KICKOFF queue task. Read tools
+                    answer questions; plan_workflow only queues scope on the
+                    task. Execution happens when the operator gives the word
+                    (conversation.handle_reply) — plain code, never the model.
+  DASHBOARD mode -> the Chat tab. Same read tools, no task pinned. Its only
+                    mutation is propose_workflow, which files a NEW pending
+                    task in the approval queue — so anything born in chat
+                    still passes the same human gate before running.
 
-So "nothing runs without a human" is enforced by what the agent physically
+The permission split is structural: execution tools do not exist in either
+mode. "Nothing runs without a human" is enforced by what the agent physically
 cannot call, not by prompt obedience.
 """
 
+import inspect
 import shutil
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +33,7 @@ logger = structlog.get_logger()
 
 MAX_AGENT_ITERATIONS = 8
 
-TOOL_SCHEMAS: list[dict[str, Any]] = [
+_READ_TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "name": "list_active_transactions",
         "description": "List all transactions the system is tracking (slug, address, "
@@ -68,6 +70,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "required": ["query"],
         },
     },
+]
+
+TASK_TOOL_SCHEMAS: list[dict[str, Any]] = _READ_TOOL_SCHEMAS + [
     {
         "name": "read_intake_document",
         "description": "Read the text of a document in this task's intake bundle.",
@@ -116,8 +121,35 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     },
 ]
 
+DASHBOARD_TOOL_SCHEMAS: list[dict[str, Any]] = _READ_TOOL_SCHEMAS + [
+    {
+        "name": "list_pending_tasks",
+        "description": "List the tasks currently waiting in the approval queue.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "propose_workflow",
+        "description": "File a NEW workflow proposal in the approval queue. It does "
+        "NOT run — the TC reviews and approves it on the Queue tab like any other "
+        "proposal.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "side": {"type": "string", "enum": ["listing", "buyer"]},
+                "client_name": {"type": "string"},
+                "property_address": {"type": "string"},
+                "note": {
+                    "type": "string",
+                    "description": "Scoping notes for extraction (amendments, focus)",
+                },
+            },
+            "required": ["side"],
+        },
+    },
+]
 
-SYSTEM_PROMPT = """You are the queue copilot for a Maine real-estate transaction \
+
+TASK_SYSTEM_PROMPT = """You are the queue copilot for a Maine real-estate transaction \
 coordinator (TC). A proposed piece of work is pending on the approval queue and you \
 are talking it through with the TC — scoping exactly what should run.
 
@@ -128,34 +160,37 @@ and draft the MLS listing.
 
 Hard rules of this conversation:
 - You CANNOT execute anything. Your plan_workflow tool only queues scope; the \
-system runs the planned work when the TC explicitly gives the word (or clicks Approve). \
-Never claim something ran.
+system runs the planned work when the TC explicitly gives the word (or clicks \
+Approve). Never claim something ran.
 - Plan one workflow per client/property. If the intake mentions several, plan \
 each.
 - Use your read tools instead of guessing — check transaction status, MLS \
 readiness, the playbook, or the intake documents before answering questions about \
 them.
 - If the TC references local paperwork by path, attach it with attach_local_file.
-- Capture amendments ("only do 12 Birch", "sellers are the Larsons") in the planned \
-workflow's note field — extraction treats those notes as authoritative.
+- Capture amendments ("only do 12 Birch", "sellers are the Larsons") in the \
+planned workflow's note field — extraction treats those notes as authoritative.
 - Be brief and concrete, like a sharp colleague in a work chat. End with what \
 you're waiting on when the plan is ready ("say the word and I'll run both").
 
 Current task context:
 {context}"""
 
+DASHBOARD_SYSTEM_PROMPT = """You are the dashboard copilot for a Maine real-estate \
+transaction coordinator (TC) — the chat tab of their workflow console.
 
-def _tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
-    """Build tool implementations closed over this task's mutable state.
+You can look up live state (transactions, workflow steps, MLS readiness, the \
+approval queue) and search the team playbook. Use tools instead of guessing.
 
-    `state` holds `planned_actions` (the plan), `attachments` (names added to
-    the bundle), and is persisted by the caller after the turn.
-    """
-    intake_dir = (
-        Path(task.proposal_data["intake_dir"])
-        if task.proposal_data.get("intake_dir")
-        else None
-    )
+You CANNOT execute anything. Your only write tool, propose_workflow, files a new \
+proposal in the approval queue — the TC approves it there before anything runs. \
+When you propose, say so and point them at the Queue tab.
+
+Be brief and concrete, like a sharp colleague in a work chat."""
+
+
+def _read_tool_impls() -> dict[str, Any]:
+    """Read-only lookups shared by both modes."""
 
     def list_active_transactions() -> str:
         envelopes = list_transactions()
@@ -219,6 +254,26 @@ def _tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
                     break
         return "\n---\n".join(hits) if hits else "No playbook matches."
 
+    return {
+        "list_active_transactions": list_active_transactions,
+        "transaction_status": transaction_status,
+        "mls_readiness": mls_readiness_tool,
+        "search_playbook": search_playbook,
+    }
+
+
+def _task_tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
+    """Task-mode tools closed over this task's mutable state.
+
+    `state` holds `planned_actions` (the plan) and `attachments` (names added
+    to the bundle); the caller persists it after the turn.
+    """
+    intake_dir = (
+        Path(task.proposal_data["intake_dir"])
+        if task.proposal_data.get("intake_dir")
+        else None
+    )
+
     def read_intake_document(name: str) -> str:
         from realtorai.workflows.intake import paperwork_from_bytes
 
@@ -267,14 +322,88 @@ def _tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
         return f"Removed planned {removed.get('side')} — {removed.get('client_name')}."
 
     return {
-        "list_active_transactions": list_active_transactions,
-        "transaction_status": transaction_status,
-        "mls_readiness": mls_readiness_tool,
-        "search_playbook": search_playbook,
+        **_read_tool_impls(),
         "read_intake_document": read_intake_document,
         "attach_local_file": attach_local_file,
         "plan_workflow": plan_workflow,
         "unplan_workflow": unplan_workflow,
+    }
+
+
+def _dashboard_tool_impls() -> dict[str, Any]:
+    """Dashboard-mode tools: read everything, propose into the queue only."""
+
+    async def list_pending_tasks() -> str:
+        from realtorai.orchestration.queue import task_queue
+
+        tasks = await task_queue.get_pending()
+        if not tasks:
+            return "The approval queue is empty."
+        return "\n".join(
+            f"- [{t.task_type.value}] {t.title} ({t.summary})" for t in tasks
+        )
+
+    async def propose_workflow(
+        side: str,
+        client_name: str | None = None,
+        property_address: str | None = None,
+        note: str | None = None,
+    ) -> str:
+        import uuid
+
+        from realtorai.config.settings import get_settings
+        from realtorai.orchestration.queue import task_queue
+        from realtorai.schemas.tasks import TaskType
+
+        intake_dir = (
+            get_settings().data_dir / "intake" / f"intake_{uuid.uuid4().hex[:10]}"
+        )
+        intake_dir.mkdir(parents=True, exist_ok=True)
+        who = client_name or "client TBD"
+        where = property_address or "address TBD"
+        task_id = await task_queue.add_custom_task(
+            task_type=TaskType.WORKFLOW_KICKOFF,
+            title=f"New {side} client — start intake workflow?",
+            summary=f"{who} — {where} (proposed from dashboard chat)",
+            details={
+                "client_name": client_name,
+                "property_address": property_address,
+                "source": "dashboard_chat",
+            },
+            proposal_data={
+                "action": "run_intake_workflow",
+                "side": side,
+                "intake_dir": str(intake_dir),
+                "client_name": client_name,
+                "conversation": [
+                    {
+                        "role": "agent",
+                        "text": f"Proposed from dashboard chat: {side} workflow for "
+                        f"{who} — {where}."
+                        + (f" Note: {note}" if note else "")
+                        + " Attach paperwork by path here, then give the word.",
+                    }
+                ],
+                "planned_actions": [
+                    {
+                        "side": side,
+                        "client_name": client_name,
+                        "property_address": property_address,
+                        "note": note,
+                    }
+                ],
+            },
+            confidence="high",
+        )
+        return (
+            f"Proposed: task {task_id} is now pending in the approval queue. "
+            "Nothing runs until the TC approves it there."
+        )
+
+    return {
+        **_read_tool_impls(),
+        "list_pending_tasks": list_pending_tasks,
+        "propose_workflow": propose_workflow,
     }
 
 
@@ -304,8 +433,8 @@ def _task_context(task: Task, state: dict[str, Any]) -> str:
 def _conversation_messages(conversation: list[dict]) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     for msg in conversation:
-        role = "assistant" if msg.get("role") == "agent" else "user"
-        text = msg.get("text", "")
+        role = "assistant" if msg.get("role") in ("agent", "assistant") else "user"
+        text = msg.get("text") or msg.get("content") or ""
         if messages and messages[-1]["role"] == role:
             messages[-1]["content"] += f"\n\n{text}"
         else:
@@ -313,27 +442,19 @@ def _conversation_messages(conversation: list[dict]) -> list[dict[str, Any]]:
     return messages
 
 
-async def run_copilot_turn(
-    task: Task, conversation: list[dict]
-) -> tuple[str, dict[str, Any]]:
-    """One agent turn over the task's thread (last message = the operator's).
-
-    Returns (reply_text, state) where state carries planned_actions /
-    attachments mutations for the caller to persist. Raises ClaudeEngineError
-    when the API is unavailable — callers fall back to the offline canned path.
-    """
+async def _agent_loop(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    impls: dict[str, Any],
+    system: str,
+) -> AsyncIterator[tuple[str, str]]:
+    """Drive the tool-use loop, yielding ("tool", name) per call and
+    ("text", final_reply) once the model stops calling tools."""
     engine = get_claude_engine()
-    state: dict[str, Any] = {
-        "planned_actions": list(task.proposal_data.get("planned_actions", [])),
-    }
-    impls = _tool_impls(task, state)
-    messages = _conversation_messages(conversation)
-
     text = ""
     for _ in range(MAX_AGENT_ITERATIONS):
-        system = SYSTEM_PROMPT.format(context=_task_context(task, state))
         response = await engine.chat_with_tools(
-            messages, tools=TOOL_SCHEMAS, system_prompt=system
+            messages, tools=tools, system_prompt=system
         )
         text = "".join(b.text for b in response.content if b.type == "text")
         tool_uses = [b for b in response.content if b.type == "tool_use"]
@@ -342,9 +463,12 @@ async def run_copilot_turn(
         messages.append({"role": "assistant", "content": response.content})
         results = []
         for call in tool_uses:
+            yield "tool", call.name
             impl = impls.get(call.name)
             try:
                 output = impl(**call.input) if impl else f"Unknown tool: {call.name}"
+                if inspect.isawaitable(output):
+                    output = await output
             except Exception as e:  # tool errors go back to the model, not the user
                 logger.warning("copilot_tool_failed", tool=call.name, error=str(e))
                 output = f"Tool error: {e}"
@@ -353,5 +477,43 @@ async def run_copilot_turn(
                 {"type": "tool_result", "tool_use_id": call.id, "content": str(output)}
             )
         messages.append({"role": "user", "content": results})
+    yield "text", text or "…"
 
-    return text or "…", state
+
+async def run_copilot_turn(
+    task: Task, conversation: list[dict]
+) -> tuple[str, dict[str, Any]]:
+    """One task-mode agent turn (last message = the operator's).
+
+    Returns (reply_text, state) where state carries planned_actions /
+    attachments mutations for the caller to persist. Raises ClaudeEngineError
+    when the API is unavailable — callers fall back to the offline canned path.
+    """
+    state: dict[str, Any] = {
+        "planned_actions": list(task.proposal_data.get("planned_actions", [])),
+    }
+    impls = _task_tool_impls(task, state)
+    messages = _conversation_messages(conversation)
+    system = TASK_SYSTEM_PROMPT.format(context=_task_context(task, state))
+
+    text = "…"
+    async for kind, payload in _agent_loop(messages, TASK_TOOL_SCHEMAS, impls, system):
+        if kind == "text":
+            text = payload
+    return text, state
+
+
+async def run_dashboard_turn(
+    history: list[dict],
+) -> AsyncIterator[tuple[str, str]]:
+    """One dashboard-mode agent turn as an event stream.
+
+    Yields ("tool", name) as the agent works and ("text", reply) at the end —
+    the chat route streams these to the browser.
+    """
+    impls = _dashboard_tool_impls()
+    messages = _conversation_messages(history)
+    async for event in _agent_loop(
+        messages, DASHBOARD_TOOL_SCHEMAS, impls, DASHBOARD_SYSTEM_PROMPT
+    ):
+        yield event

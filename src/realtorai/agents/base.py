@@ -1,11 +1,18 @@
-"""Base class for specialized agents."""
+"""Base class for specialized agents.
+
+Agents run on the Claude API (model routing per inference/model_router.py)
+whenever a key is configured; the local MLX engine remains only as an
+offline fallback so the app degrades instead of dying without network.
+"""
 
 from abc import ABC, abstractmethod
 from typing import Any
 
 import structlog
 
+from realtorai.inference.claude_engine import get_claude_engine
 from realtorai.inference.engine import InferenceEngine, get_engine
+from realtorai.inference.model_router import LLMTask
 
 logger = structlog.get_logger()
 
@@ -17,9 +24,10 @@ class Agent(ABC):
     - System prompt (defines role and behavior)
     - Tool set (what actions it can take)
     - Output schemas (expected output formats)
-
-    All agents share the same underlying LLM via the inference engine.
     """
+
+    #: model-routing tier for this agent's calls (see inference/model_router.py)
+    llm_task: LLMTask = LLMTask.DRAFT
 
     def __init__(self) -> None:
         self._engine: InferenceEngine | None = None
@@ -42,7 +50,7 @@ class Agent(ABC):
         return []
 
     async def get_engine(self) -> InferenceEngine:
-        """Get the inference engine instance."""
+        """Get the local (fallback) inference engine instance."""
         if self._engine is None:
             self._engine = await get_engine()
         return self._engine
@@ -54,8 +62,16 @@ class Agent(ABC):
         temperature: float | None = None,
     ) -> str:
         """Generate a completion using this agent's configuration."""
-        engine = await self.get_engine()
+        claude = get_claude_engine()
+        if claude.available:
+            return await claude.generate(
+                prompt,
+                task=self.llm_task,
+                system_prompt=self.system_prompt,
+                max_tokens=max_tokens or 16000,
+            )
 
+        engine = await self.get_engine()
         return await engine.generate(
             prompt=prompt,
             system_prompt=self.system_prompt,
@@ -70,8 +86,17 @@ class Agent(ABC):
         max_tokens: int | None = None,
     ) -> Any:
         """Generate a structured output using this agent's configuration."""
-        engine = await self.get_engine()
+        claude = get_claude_engine()
+        if claude.available:
+            return await claude.generate_structured(
+                prompt,
+                output_schema,
+                task=self.llm_task,
+                system_prompt=self.system_prompt,
+                max_tokens=max_tokens or 16000,
+            )
 
+        engine = await self.get_engine()
         return await engine.generate_structured(
             prompt=prompt,
             output_schema=output_schema,
@@ -80,7 +105,7 @@ class Agent(ABC):
         )
 
     async def call_tools(self, prompt: str) -> dict[str, Any]:
-        """Generate a tool call using this agent's configuration."""
+        """Generate a tool call using this agent's configuration (local only)."""
         if not self.tools:
             return {"tool": None, "response": await self.generate(prompt)}
 

@@ -118,41 +118,6 @@
             </div>
         </section>
 
-        <!-- Clients Panel (main panel) -->
-        <section class="panel clients-panel">
-            <div class="panel-header">
-                <h2>Active Clients</h2>
-                <span class="badge">{{ clients | length }}</span>
-            </div>
-            <div class="panel-content">
-                {% if clients %}
-                <div class="client-list">
-                    {% for client in clients[:6] %}
-                    <a href="/clients/{{ client.id }}" class="client-card" data-client-id="{{ client.id }}">
-                        <div class="client-header">
-                            <span class="client-name">{{ client.name }}</span>
-                        </div>
-                        <div class="client-details">
-                            {% if client.property_address %}
-                            <span class="property">{{ client.property_address }}</span>
-                            {% endif %}
-                            {% if client.transaction_type %}
-                            <span class="type">{{ client.transaction_type | title }}</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-                <a href="/clients" class="view-all">View all clients →</a>
-                {% else %}
-                <div class="empty-state">
-                    <p>No active clients yet</p>
-                    <p class="subtle">Leads convert to clients when they sign an agreement</p>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-
         <!-- Leads Panel (secondary) -->
         {% if leads %}
         <section class="panel leads-panel">
@@ -184,66 +149,6 @@
         </section>
         {% endif %}
 
-        <!-- Quick Chat Panel (main panel) -->
-        <section class="panel chat-panel">
-            <div class="panel-header">
-                <h2>Quick Chat</h2>
-            </div>
-            <div class="panel-content">
-                <form id="quick-chat-form" class="chat-form">
-                    <textarea name="message"
-                              id="quick-chat-input"
-                              placeholder="Ask me anything or give me a task... (Cmd/Ctrl+Enter to send)"
-                              class="chat-input"
-                              rows="3"
-                              autocomplete="off"></textarea>
-                    <button type="submit" class="btn btn-primary">Send</button>
-                </form>
-                <div id="chat-response" class="chat-response"></div>
-            </div>
-        </section>
-
-        <!-- Status Panel (secondary) -->
-        <section class="panel status-panel">
-            <div class="panel-header">
-                <h2>System Status</h2>
-            </div>
-            <div class="panel-content">
-                <div class="status-item">
-                    <span class="status-label">Outlook</span>
-                    {% if graph_connected %}
-                    <span class="status-value connected">Connected</span>
-                    {% else %}
-                    <span class="status-value disconnected">
-                        Not connected
-                        <a href="/setup" class="setup-link">Set up →</a>
-                    </span>
-                    {% endif %}
-                </div>
-                <div class="status-item">
-                    <span class="status-label">DocuSign</span>
-                    {% if docusign_connected %}
-                    <span class="status-value connected">Connected</span>
-                    {% else %}
-                    <span class="status-value disconnected">
-                        Not connected
-                    </span>
-                    {% endif %}
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Model</span>
-                    <span class="status-value">{{ model_name }}</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Daemon</span>
-                    {% if daemon_running %}
-                    <span class="status-value connected">Running</span>
-                    {% else %}
-                    <span class="status-value warning">Not running</span>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
     </div>
 </div>
 
@@ -251,62 +156,6 @@
 // Track currently selected item for keyboard confirmation
 let selectedItemId = null;
 let selectedItemType = null;  // 'task' or 'pending'
-
-// Cmd/Ctrl+Enter submits the textarea
-document.getElementById('quick-chat-input').addEventListener('keydown', function(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('quick-chat-form').requestSubmit();
-    }
-});
-
-// Quick chat form
-document.getElementById('quick-chat-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const input = document.getElementById('quick-chat-input');
-    const message = input.value.trim();
-    if (!message) return;
-
-    const responseDiv = document.getElementById('chat-response');
-    responseDiv.innerHTML = '<p class="streaming"></p>';
-    input.value = '';
-
-    const formData = new FormData();
-    formData.append('message', message);
-
-    try {
-        const response = await fetch('/chat/stream', {
-            method: 'POST',
-            body: formData
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const streamingP = responseDiv.querySelector('.streaming');
-
-        while (true) {
-            const {done, value} = await reader.read();
-            if (done) break;
-
-            const text = decoder.decode(value);
-            const lines = text.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') {
-                        break;
-                    }
-                    streamingP.innerHTML += data;
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Stream error:', error);
-        responseDiv.innerHTML = '<p class="error">Error: ' + error.message + '</p>';
-    }
-});
 
 // Click handlers for selectable items
 document.querySelectorAll('.task-card').forEach(card => {
