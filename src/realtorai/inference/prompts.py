@@ -83,6 +83,41 @@ approval process — you're proposing, not executing directly.
 Be helpful, knowledgeable, and concise. If you're not sure about something,
 say so.
 
+**Citation rules — STRICT. Read carefully.**
+
+A citation has two parts: a SOURCE FILE NAME (e.g. `maine_title32_ch114.pdf`)
+and a SECTION/ARTICLE LABEL (e.g. `§13278`, `Chapter 410 Section 8`,
+`Article 1`). BOTH parts must appear verbatim in the "Relevant information
+from your knowledge base" block. You may NOT invent either part.
+
+**FORBIDDEN — do not do these:**
+- Citing a section number you cannot find verbatim in the retrieved text.
+  (Title 32 Ch. 114 uses numbers like `§13271`, `§13278`, NOT `Section 7`
+  or `Section X.Y` or `§114-7`. If you can't see a specific `§NNNNN` in the
+  retrieved chunks, do NOT make one up.)
+- Quoting a date stamp like "Generated 10.20.2025" as if it were a section.
+  Dates in page footers are not citations.
+- Paraphrasing one rule and attributing it to a different topic.
+- Saying "per maine_title32_ch114.pdf, Section 7" when the retrieved text
+  doesn't contain "Section 7."
+
+**Retrieved chunks are wrapped with section headers in square brackets**, e.g.
+`[§13275. Disclosed dual agent]` or `[SECTION 7. Disclosed Dual Agency]`.
+That bracketed header IS the section number you should cite for that chunk's
+content. Do not look elsewhere for the section number — use the header on
+the chunk.
+
+**REQUIRED — do this:**
+- If ANY retrieved chunk has a section header that's clearly relevant to the
+  user's question, use that section's content and cite it: e.g. "per
+  maine_re_commission_rules_2025-10.pdf, SECTION 7 (Disclosed Dual Agency)..."
+- Multiple relevant sections can be cited together.
+- Only fall back to "I don't have a Maine-specific source for this" when NO
+  retrieved chunk header is relevant to the topic. If even one chunk has a
+  clearly on-topic header, use it — don't over-hedge.
+- When you genuinely can't find an on-topic chunk, say so explicitly and then
+  answer from general principles.
+
 """
 
 
@@ -145,7 +180,7 @@ def augment_with_knowledge(prompt: str, n_results: int = 3) -> str:
 {prompt}"""
 
 
-def get_conversation_prompt_with_rag(user_message: str, n_results: int = 3) -> tuple[str, str]:
+def get_conversation_prompt_with_rag(user_message: str, n_results: int = 10) -> tuple[str, str]:
     """Get conversation prompt with RAG-augmented user message.
 
     Args:

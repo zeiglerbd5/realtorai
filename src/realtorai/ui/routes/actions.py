@@ -27,9 +27,9 @@ async def approve_task(request: Request, task_id: str) -> HTMLResponse:
 
     if success:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": True,
                 "message": "Task approved and executed",
                 "task_id": task_id,
@@ -37,9 +37,9 @@ async def approve_task(request: Request, task_id: str) -> HTMLResponse:
         )
     else:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": False,
                 "message": "Task execution failed",
                 "task_id": task_id,
@@ -74,9 +74,9 @@ async def edit_task(
 
     if success:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": True,
                 "message": "Task approved with edits and executed",
                 "task_id": task_id,
@@ -84,9 +84,9 @@ async def edit_task(
         )
     else:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": False,
                 "message": "Task execution failed",
                 "task_id": task_id,
@@ -109,9 +109,9 @@ async def reject_task(
     await approval_loop.reject(task, reason)
 
     return templates.TemplateResponse(
+        request,
         "components/action_result.html",
         {
-            "request": request,
             "success": True,
             "message": "Task rejected",
             "task_id": task_id,
@@ -130,17 +130,17 @@ async def get_edit_form(request: Request, task_id: str) -> HTMLResponse:
     # Use extraction-specific form for extraction tasks
     if task.task_type in (TaskType.EXTRACTION_MLS, TaskType.EXTRACTION_TRANSACTION):
         return templates.TemplateResponse(
+            request,
             "components/extraction_edit_form.html",
             {
-                "request": request,
                 "task": task,
             },
         )
 
     return templates.TemplateResponse(
+        request,
         "components/edit_form.html",
         {
-            "request": request,
             "task": task,
         },
     )
@@ -155,9 +155,9 @@ async def get_task_detail(request: Request, task_id: str) -> HTMLResponse:
         return HTMLResponse(content="Task not found", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "components/task_detail.html",
         {
-            "request": request,
             "task": task,
         },
     )
@@ -215,9 +215,9 @@ async def edit_extraction(request: Request, task_id: str) -> HTMLResponse:
 
     if success:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": True,
                 "message": "Extraction applied with edits",
                 "task_id": task_id,
@@ -225,9 +225,9 @@ async def edit_extraction(request: Request, task_id: str) -> HTMLResponse:
         )
     else:
         return templates.TemplateResponse(
+            request,
             "components/action_result.html",
             {
-                "request": request,
                 "success": False,
                 "message": "Extraction failed",
                 "task_id": task_id,

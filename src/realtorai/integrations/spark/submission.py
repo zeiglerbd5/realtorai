@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 import structlog
 
+from realtorai.config.settings import get_settings
 from realtorai.integrations.spark.client import get_spark_client, SPARK_API_BASE
 from realtorai.integrations.spark.auth import spark_auth
 from realtorai.integrations.spark.mls_feeder import (
@@ -25,6 +26,11 @@ from realtorai.integrations.spark.mls_feeder import (
     set_feeder_status,
     get_feeder_completeness,
 )
+
+
+def _mock_backend() -> bool:
+    """True when MLS submission should hit the local simulator."""
+    return get_settings().mls_backend == "mock"
 
 logger = structlog.get_logger()
 
@@ -121,6 +127,21 @@ def feeder_to_spark_payload(feeder: dict[str, Any]) -> dict[str, Any]:
         payload["StoriesTotal"] = int(prop["stories"])
     if prop.get("garage_spaces"):
         payload["GarageSpaces"] = int(prop["garage_spaces"])
+    if prop.get("garage_yn") is not None:
+        payload["GarageYN"] = bool(prop["garage_yn"])
+    if prop.get("rooms_total"):
+        payload["RoomsTotal"] = int(prop["rooms_total"])
+    if prop.get("fireplaces_total") is not None:
+        payload["FireplacesTotal"] = int(prop["fireplaces_total"])
+    if prop.get("lot_size_acres"):
+        payload["LotSizeAcres"] = float(prop["lot_size_acres"])
+
+    # Features
+    feats = feeder.get("features", {})
+    if feats.get("water_source"):
+        payload["WaterSource"] = feats["water_source"]
+    if feats.get("sewer"):
+        payload["Sewer"] = feats["sewer"]
 
     # Marketing/description
     if marketing.get("public_remarks"):
@@ -249,7 +270,20 @@ async def create_draft_listing(
         "creating_draft_listing",
         client_id=client_id,
         field_count=len(payload),
+        backend="mock" if _mock_backend() else "live",
     )
+
+    if _mock_backend():
+        from realtorai.integrations.spark.mock import get_mock_mls
+
+        result = get_mock_mls().create_listing(payload)
+        set_feeder_status(
+            client_id=client_id,
+            name=name,
+            status="submitted",
+            mls_listing_id=result["listing_id"],
+        )
+        return result
 
     # Make API call
     client = get_spark_client()
@@ -329,6 +363,9 @@ async def get_photo_upload_ticket(listing_key: str) -> dict[str, Any]:
     Returns:
         Dict with token, uri, and expires_in
     """
+    if _mock_backend():
+        return {"token": "mock-token", "uri": f"mock://photos/{listing_key}", "expires_in": 3600}
+
     token = await spark_auth.get_access_token()
     if not token:
         raise ListingSubmissionError("Not authenticated with Spark API")
@@ -376,6 +413,14 @@ async def upload_photo(
     if not photo_path.exists():
         logger.warning("photo_not_found", path=str(photo_path))
         return None
+
+    if upload_uri.startswith("mock://"):
+        from realtorai.integrations.spark.mock import get_mock_mls
+
+        listing_key = upload_uri.removeprefix("mock://photos/")
+        photo_id = get_mock_mls().add_photo(listing_key, photo_path.name, is_primary=is_primary)
+        logger.info("photo_uploaded", photo_id=photo_id, name=photo_path.name, backend="mock")
+        return photo_id
 
     # Determine content type
     content_type, _ = mimetypes.guess_type(str(photo_path))
@@ -545,6 +590,21 @@ async def get_listing_status(listing_key: str) -> dict[str, Any] | None:
     Returns:
         Listing data including status, or None if not found
     """
+    if _mock_backend():
+        from realtorai.integrations.spark.mock import get_mock_mls
+
+        listing = get_mock_mls().get_listing(listing_key)
+        if listing is None:
+            return None
+        return {
+            "listing_key": listing["ListingKey"],
+            "listing_id": listing["ListingId"],
+            "status": listing["StandardStatus"],
+            "mls_status": listing["MlsStatus"],
+            "price": listing["Payload"].get("ListPrice"),
+            "modification_timestamp": listing["ModificationTimestamp"],
+        }
+
     client = get_spark_client()
 
     try:

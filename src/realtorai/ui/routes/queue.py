@@ -18,9 +18,9 @@ async def get_queue(request: Request) -> HTMLResponse:
     tasks = await task_queue.get_pending(limit=50)
 
     return templates.TemplateResponse(
+        request,
         "queue.html",
         {
-            "request": request,
             "tasks": tasks,
             "count": len(tasks),
         },
@@ -33,9 +33,9 @@ async def get_queue_items(request: Request) -> HTMLResponse:
     tasks = await task_queue.get_pending(limit=50)
 
     return templates.TemplateResponse(
+        request,
         "components/queue_items.html",
         {
-            "request": request,
             "tasks": tasks,
         },
     )
@@ -63,9 +63,9 @@ async def get_task_detail(request: Request, task_id: str) -> HTMLResponse:
         return HTMLResponse(content="Task not found", status_code=404)
 
     return templates.TemplateResponse(
+        request,
         "components/task_detail.html",
         {
-            "request": request,
             "task": task,
         },
     )

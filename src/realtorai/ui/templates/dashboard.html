@@ -191,12 +191,12 @@
             </div>
             <div class="panel-content">
                 <form id="quick-chat-form" class="chat-form">
-                    <input type="text"
-                           name="message"
-                           id="quick-chat-input"
-                           placeholder="Ask me anything or give me a task..."
-                           class="chat-input"
-                           autocomplete="off">
+                    <textarea name="message"
+                              id="quick-chat-input"
+                              placeholder="Ask me anything or give me a task... (Cmd/Ctrl+Enter to send)"
+                              class="chat-input"
+                              rows="3"
+                              autocomplete="off"></textarea>
                     <button type="submit" class="btn btn-primary">Send</button>
                 </form>
                 <div id="chat-response" class="chat-response"></div>
@@ -251,6 +251,14 @@
 // Track currently selected item for keyboard confirmation
 let selectedItemId = null;
 let selectedItemType = null;  // 'task' or 'pending'
+
+// Cmd/Ctrl+Enter submits the textarea
+document.getElementById('quick-chat-input').addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('quick-chat-form').requestSubmit();
+    }
+});
 
 // Quick chat form
 document.getElementById('quick-chat-form').addEventListener('submit', async function(e) {

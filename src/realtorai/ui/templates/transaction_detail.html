@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ record.street_address or envelope.client_name or envelope.slug }} — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="transaction-detail">
+    <header class="page-header">
+        <h1>{{ record.street_address or envelope.client_name or envelope.slug }}{% if record.city %}, {{ record.city }}{% endif %}</h1>
+        <p class="subtitle">
+            {{ record.representation_side or '?' }} side
+            {% if record.docusign_room_id %} · Room #{{ record.docusign_room_id }}{% endif %}
+            {% if record.mls_number %} · MLS #{{ record.mls_number }}{% endif %}
+            {% if docusign_backend == 'mock' %}<span class="badge">mock backend</span>{% endif %}
+        </p>
+    </header>
+
+    <div class="dashboard-grid">
+        <!-- Workflow timeline -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Workflow — {{ workflow.get('name', '?') | title }}</h2>
+                <span class="task-confidence {{ 'high' if workflow.get('status') == 'done' else 'medium' if workflow.get('status') == 'waiting' else 'low' }}">
+                    {{ workflow.get('status', 'not started') }}
+                </span>
+            </div>
+            <div class="panel-content">
+                <ul class="workflow-steps" style="list-style:none; padding:0; margin:0">
+                    {% for step in workflow.get('steps', []) %}
+                    <li style="padding:6px 0; border-bottom:1px solid rgba(128,128,128,.15)">
+                        {% if step.status == 'done' %}✅
+                        {% elif step.status == 'waiting' %}⏳
+                        {% elif step.status == 'failed' %}❌
+                        {% elif step.status == 'skipped' %}➖
+                        {% else %}▫️{% endif %}
+                        <strong>{{ step.title }}</strong>
+                        {% if step.detail %}<br><small style="opacity:.75; margin-left:1.6em">{{ step.detail }}</small>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <form method="post" action="/transactions/{{ envelope.slug }}/resume" style="margin-top:12px">
+                    <button class="btn btn-edit" type="submit">Resume / re-run workflow</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Room contents -->
+        <section class="panel">
+            <div class="panel-header"><h2>Transaction Room</h2></div>
+            <div class="panel-content">
+                {% if room %}
+                <p><strong>{{ room.name }}</strong> — {{ room.roomStatus }} · created {{ room.createdDate[:10] }}</p>
+
+                {% for task_list in task_lists %}
+                <h3>Task list: {{ task_list.name }}</h3>
+                <ul>
+                    {% for task in task_list.tasks %}
+                    <li><small>{{ '☐' if task.status == 'Pending' else '☑' }} {{ task.name }}</small></li>
+                    {% endfor %}
+                </ul>
+                {% endfor %}
+
+                {% if forms %}
+                <h3>Forms (auto-filled from room field data)</h3>
+                <ul>
+                    {% for form in forms %}
+                    <li><small>{{ form.name }} — {{ form.prefilledFieldCount }}/{{ form.expectedFieldCount }} fields</small></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                {% if documents %}
+                <h3>Documents</h3>
+                <ul>
+                    {% for doc in documents %}
+                    <li><small>{{ doc.name }} ({{ doc.size }} bytes)</small></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% else %}
+                <p class="empty-state">Room not created yet.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- MLS + artifacts -->
+        <section class="panel">
+            <div class="panel-header"><h2>MLS Listing</h2></div>
+            <div class="panel-content">
+                {% if mls_status %}
+                <p>
+                    <strong>Draft #{{ mls_status.listing_id }}</strong> — {{ mls_status.mls_status }}<br>
+                    {% if mls_status.price %}<small>List price: ${{ '{:,}'.format(mls_status.price) }}</small><br>{% endif %}
+                    <small>Agent reviews and publishes in Flexmls.</small>
+                </p>
+                {% else %}
+                <p class="empty-state">No MLS draft{% if record.representation_side == 'Buyer' %} (buyer side — none needed){% endif %}.</p>
+                {% endif %}
+            </div>
+            <div class="panel-header"><h2>Artifacts</h2></div>
+            <div class="panel-content">
+                <ul>
+                    {% for artifact in envelope.artifacts %}
+                    <li>
+                        <small>
+                            {{ artifact.name }}
+                            {% if artifact.uploaded_to_room %}<span class="badge">filed to room</span>
+                            {% else %}<em>(internal)</em>{% endif %}
+                        </small>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -9,6 +9,7 @@ import httpx
 import structlog
 
 from realtorai.rag.config import get_chunk_size, get_chunk_overlap
+from realtorai.rag.section_aware import detect_section_style, split_by_sections
 from realtorai.rag.store import get_vector_store
 
 logger = structlog.get_logger()
@@ -55,15 +56,15 @@ class DocumentIngester:
         else:
             raise ValueError(f"Unsupported file type: {suffix}")
 
-        # Chunk and add
-        chunks = self._chunk_text(text)
+        # Chunk (section-aware if the doc looks like a statute/rule)
+        chunks, chunk_meta = self._chunk_with_section_awareness(text)
         if not chunks:
             logger.warning("no_chunks_extracted", source=source)
             return 0
 
         # Create metadata and IDs
         metadatas = [
-            {"source": source, "type": suffix[1:], "chunk_index": i}
+            {"source": source, "type": suffix[1:], "chunk_index": i, **chunk_meta[i]}
             for i in range(len(chunks))
         ]
         ids = [
@@ -77,7 +78,13 @@ class DocumentIngester:
         # Add new chunks
         self.store.add_documents(chunks, metadatas, ids)
 
-        logger.info("file_ingested", source=source, chunks=len(chunks))
+        section_count = sum(1 for m in chunk_meta if m.get("section"))
+        logger.info(
+            "file_ingested",
+            source=source,
+            chunks=len(chunks),
+            section_aware=section_count > 0,
+        )
         return len(chunks)
 
     def ingest_url(self, url: str) -> int:
@@ -205,6 +212,37 @@ class DocumentIngester:
         text = re.sub(r'\s+', ' ', text).strip()
 
         return text
+
+    def _chunk_with_section_awareness(self, text: str) -> tuple[list[str], list[dict]]:
+        """Chunk text with legal-doc section awareness when applicable.
+
+        Detects whether the document uses Maine MRSA-style (§NNNNN) or Maine
+        Commission Rules-style (SECTION N) section headers. If so, splits
+        text into sections first, chunks each section's body, and prepends
+        the section header to every chunk produced from that section. The
+        section header is also added to that chunk's metadata.
+
+        For non-legal documents, falls back to plain chunking.
+
+        Returns:
+            (chunks, per_chunk_metadata_extras)
+        """
+        style = detect_section_style(text)
+        if style is None:
+            plain = self._chunk_text(text)
+            return plain, [{} for _ in plain]
+
+        chunks: list[str] = []
+        metas: list[dict] = []
+        for header, body in split_by_sections(text, style):
+            for body_chunk in self._chunk_text(body):
+                if header:
+                    chunks.append(f"[{header}]\n\n{body_chunk}")
+                    metas.append({"section": header})
+                else:
+                    chunks.append(body_chunk)
+                    metas.append({})
+        return chunks, metas
 
     def _chunk_text(self, text: str) -> list[str]:
         """Split text into overlapping chunks.

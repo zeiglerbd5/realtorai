@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from realtorai.config.settings import get_settings
 
 from realtorai.storage.database import get_database
-from realtorai.ui.routes import actions, chat, clients, pending, queue
+from realtorai.ui.routes import actions, chat, clients, pending, queue, transactions
 
 logger = structlog.get_logger()
 
@@ -61,6 +61,7 @@ app.include_router(actions.router, prefix="/actions", tags=["actions"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(clients.router, prefix="/clients", tags=["clients"])
 app.include_router(pending.router, prefix="/pending", tags=["pending"])
+app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -96,9 +97,9 @@ async def index(request: Request) -> HTMLResponse:
     model_name = settings.model_name.split("/")[-1]
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "pending_tasks": pending_tasks,
             "pending_count": len(pending_tasks),
             "clients": clients,
@@ -149,9 +150,9 @@ async def setup(request: Request) -> HTMLResponse:
     from realtorai.integrations.graph.auth import graph_auth
 
     return templates.TemplateResponse(
+        request,
         "setup.html",
         {
-            "request": request,
             "graph_configured": await graph_auth.is_configured(),
             "graph_connected": await graph_auth.is_connected(),
         },
