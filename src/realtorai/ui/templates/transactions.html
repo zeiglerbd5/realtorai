@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions — RealtorAI{% endblock %}
+
+{% block content %}
+<div class="transactions-page">
+    <header class="page-header">
+        <h1>Transactions</h1>
+        <p class="subtitle">
+            DocuSign Transaction Rooms + MLS workflow automation
+            {% if docusign_backend == 'mock' %}
+            <span class="badge" title="Local Rooms simulator — flip DOCUSIGN_BACKEND=live when broker API access is approved">DTR: mock</span>
+            {% endif %}
+            {% if mls_backend == 'mock' %}
+            <span class="badge" title="Local MLS simulator — flip MLS_BACKEND=live when Spark API access is approved">MLS: mock</span>
+            {% endif %}
+        </p>
+    </header>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Active Transactions</h2>
+            <form method="post" action="/transactions/demo/listing" style="margin:0">
+                <button class="btn btn-approve" type="submit"
+                        title="Run the reference listing workflow (22 Penobscot St)">
+                    Run demo listing workflow
+                </button>
+            </form>
+        </div>
+        <div class="panel-content">
+            {% if transactions %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Property / Client</th>
+                        <th>Side</th>
+                        <th>Workflow</th>
+                        <th>Progress</th>
+                        <th>Room</th>
+                        <th>MLS</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td><a href="/transactions/{{ t.slug }}">{{ t.title }}{% if t.city %}, {{ t.city }}{% endif %}</a></td>
+                        <td>{{ t.side or '—' }}</td>
+                        <td><span class="task-confidence {{ 'high' if t.status == 'done' else 'medium' if t.status == 'waiting' else 'low' }}">{{ t.status }}</span></td>
+                        <td>{{ t.steps_done }}/{{ t.steps_total }} steps</td>
+                        <td>{% if t.room_id %}#{{ t.room_id }}{% else %}—{% endif %}</td>
+                        <td>{% if t.mls_listing_key %}draft{% else %}—{% endif %}</td>
+                        <td>{{ t.updated_at.strftime('%b %d, %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No transactions yet. Run the demo workflow, or email the bot a new client's paperwork.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -598,6 +598,8 @@ a:hover {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     color: var(--text-primary);
+    font-family: inherit;
+    resize: vertical;
 }
 
 .chat-input:focus {
@@ -611,6 +613,10 @@ a:hover {
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
     min-height: 60px;
+    max-height: 60vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 .chat-response:empty {

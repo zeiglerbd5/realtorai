@@ -28,6 +28,7 @@
                       hx-swap="outerHTML">
                 </span>
             </a>
+            <a href="/transactions" class="{% if '/transactions' in request.url.path %}active{% endif %}">Transactions</a>
             <a href="/chat" class="{% if '/chat' in request.url.path %}active{% endif %}">Chat</a>
             <a href="/setup" class="{% if '/setup' in request.url.path %}active{% endif %}">Setup</a>
         </div>

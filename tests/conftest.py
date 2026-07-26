@@ -44,6 +44,33 @@ async def database(test_db_path: Path):
 
 
 @pytest.fixture
+def offline_env(temp_dir: Path, monkeypatch) -> Generator[Path, None, None]:
+    """Isolated data dir + mock backends + no API key (fully offline).
+
+    Clears the settings cache and integration singletons so each test gets a
+    fresh mock DocuSign Rooms / MLS state under a temp DATA_DIR.
+    """
+    from realtorai.config.settings import get_settings
+    from realtorai.integrations.docusign.client import reset_docusign_client
+    from realtorai.integrations.spark.mock import reset_mock_mls
+
+    monkeypatch.setenv("DATA_DIR", str(temp_dir))
+    monkeypatch.setenv("DOCUSIGN_BACKEND", "mock")
+    monkeypatch.setenv("MLS_BACKEND", "mock")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("PUBLIC_RECORDS_LIVE", "false")
+    get_settings.cache_clear()
+    reset_docusign_client()
+    reset_mock_mls()
+
+    yield temp_dir
+
+    get_settings.cache_clear()
+    reset_docusign_client()
+    reset_mock_mls()
+
+
+@pytest.fixture
 def mock_settings(temp_dir: Path):
     """Create mock settings for testing."""
     from realtorai.config.settings import Settings

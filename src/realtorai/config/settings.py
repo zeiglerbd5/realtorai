@@ -87,6 +87,24 @@ class Settings(BaseSettings):
         default="",
         description="DocuSign Secret Key (for auth code grant)",
     )
+    docusign_backend: Literal["mock", "live"] = Field(
+        default="mock",
+        description=(
+            "Rooms API backend. 'mock' runs a local simulator (no broker API "
+            "approval needed); 'live' talks to docusign_base_uri."
+        ),
+    )
+
+    # -------------------------------------------------------------------------
+    # MLS backend (Maine Listings / FlexMLS via Spark API)
+    # -------------------------------------------------------------------------
+    mls_backend: Literal["mock", "live"] = Field(
+        default="mock",
+        description=(
+            "MLS submission backend. 'mock' stores draft listings locally; "
+            "'live' submits to the Spark API (requires MLS approval)."
+        ),
+    )
 
     # -------------------------------------------------------------------------
     # Matterport API
@@ -101,6 +119,52 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Document templates
+    # -------------------------------------------------------------------------
+    tw_template_path: Path = Field(
+        default=Path("data/templates/Transaction-Worksheet.pdf"),
+        description=(
+            "Blank The Agency Transaction Worksheet (fillable PDF). Internal "
+            "brokerage form — keep out of git; the fill step skips if missing."
+        ),
+    )
+    mis_template_path: Path = Field(
+        default=Path("data/templates/Master-Information-Sheet.pdf"),
+        description=(
+            "agency team Master Information Sheet (fillable, 89 fields). "
+            "Internal form — keep out of git; the fill step skips if missing."
+        ),
+    )
+
+    # -------------------------------------------------------------------------
+    # Public records
+    # -------------------------------------------------------------------------
+    public_records_live: bool = Field(
+        default=True,
+        description=(
+            "Fetch live public records (FEMA flood determination via NFHL). "
+            "Falls back to manual pull sheets on any failure; set false for "
+            "fully offline runs."
+        ),
+    )
+
+    # -------------------------------------------------------------------------
+    # Claude API (cloud inference for workflow automation)
+    # -------------------------------------------------------------------------
+    anthropic_api_key: str = Field(
+        default="",
+        description="Anthropic API key. Empty = workflow LLM steps degrade to offline mode.",
+    )
+    claude_model_standard: str = Field(
+        default="claude-sonnet-5",
+        description="Model for high-volume structured work: extraction, form fill, classification",
+    )
+    claude_model_review: str = Field(
+        default="claude-opus-4-8",
+        description="Model for high-stakes review: verification passes, deed review",
+    )
+
+    # -------------------------------------------------------------------------
     # Model Configuration
     # -------------------------------------------------------------------------
     model_name: str = Field(
@@ -110,8 +174,8 @@ class Settings(BaseSettings):
     model_max_tokens: int = Field(
         default=2048,
         ge=256,
-        le=8192,
-        description="Maximum tokens to generate",
+        le=32768,
+        description="Maximum tokens to generate (upper bound = Qwen3 native context)",
     )
     model_temperature: float = Field(
         default=0.7,
@@ -147,6 +211,21 @@ class Settings(BaseSettings):
     def clients_dir(self) -> Path:
         """Directory for client markdown files."""
         return self.data_dir / "clients"
+
+    @property
+    def transactions_dir(self) -> Path:
+        """Directory for transaction records, workflow state, and artifacts."""
+        return self.data_dir / "transactions"
+
+    @property
+    def mock_docusign_dir(self) -> Path:
+        """State directory for the mock DocuSign Rooms backend."""
+        return self.data_dir / "mock_docusign"
+
+    @property
+    def mock_mls_dir(self) -> Path:
+        """State directory for the mock MLS backend."""
+        return self.data_dir / "mock_mls"
 
     # -------------------------------------------------------------------------
     # Web UI
@@ -196,6 +275,9 @@ class Settings(BaseSettings):
             self.feedback_log_dir,
             self.cache_dir,
             self.clients_dir,
+            self.transactions_dir,
+            self.mock_docusign_dir,
+            self.mock_mls_dir,
         ]
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)

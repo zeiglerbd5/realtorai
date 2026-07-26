@@ -43,6 +43,7 @@ def clear_history():
 async def get_chat(request: Request) -> HTMLResponse:
     """Get the chat interface."""
     return templates.TemplateResponse(
+        request,
         "chat.html",
         {"request": request},
     )
@@ -96,9 +97,9 @@ async def send_message(
         )
 
     return templates.TemplateResponse(
+        request,
         "components/chat_message.html",
         {
-            "request": request,
             "user_message": message,
             "assistant_message": response_text,
         },
@@ -197,7 +198,7 @@ Reply in 1-2 sentences summarizing what you found. End with: Check it out here: 
         debug_log.info("PROMPT_DEBUG", prompt_length=len(prompt), last_500_chars=prompt[-500:])
 
         in_thinking = False
-        for response in stream_generate(engine._model, engine._tokenizer, prompt=prompt, max_tokens=512, sampler=sampler):
+        for response in stream_generate(engine._model, engine._tokenizer, prompt=prompt, max_tokens=settings.model_max_tokens, sampler=sampler):
             text = response.text
             full_response.append(text)
 

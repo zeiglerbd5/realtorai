@@ -27,7 +27,7 @@ SCOPES = [
 ]
 
 # OAuth redirect URI - we use localhost for desktop flow
-REDIRECT_URI = "http://localhost:8421/callback"
+REDIRECT_URI = "http://localhost:8422/callback"
 
 
 class GraphAuth(Integration):
@@ -250,7 +250,7 @@ class GraphAuth(Integration):
                 pass  # Suppress server logs
 
         # Start server in background thread
-        server = HTTPServer(("localhost", 8421), CallbackHandler)
+        server = HTTPServer(("localhost", 8422), CallbackHandler)
         server_thread = Thread(target=server.handle_request)
         server_thread.start()
 

@@ -8,7 +8,6 @@ Provides functions for managing transaction rooms, documents, forms, and tasks.
 
 from typing import Any
 
-import httpx
 import structlog
 
 from realtorai.integrations.docusign.client import get_docusign_client
@@ -376,29 +375,12 @@ async def upload_document_to_room(
     Returns:
         Created document object or None
     """
-    from realtorai.integrations.docusign.auth import docusign_auth
-    from realtorai.config.settings import get_settings
-
-    settings = get_settings()
-    token = await docusign_auth.get_access_token()
-    if not token:
-        logger.error("document_upload_no_token")
-        return None
-
-    account_id = settings.docusign_account_id
-    url = f"https://demo.rooms.docusign.com/restapi/v2/accounts/{account_id}/rooms/{room_id}/documents/contents"
+    client = get_docusign_client()
 
     try:
-        async with httpx.AsyncClient() as http_client:
-            response = await http_client.post(
-                url,
-                headers={"Authorization": f"Bearer {token}"},
-                files={"file": (file_name, file_content)},
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-
+        data = await client.post_multipart(
+            f"/rooms/{room_id}/documents/contents", file_name, file_content
+        )
         logger.info("document_uploaded", room_id=room_id, name=file_name)
         return data
 
@@ -817,20 +799,10 @@ async def get_transaction_sides() -> list[dict[str, Any]]:
 
     Note: Uses a different base URL pattern (no account ID).
     """
-    from realtorai.integrations.docusign.auth import docusign_auth
-
-    token = await docusign_auth.get_access_token()
-    if not token:
-        return []
+    client = get_docusign_client()
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://demo.rooms.docusign.com/restapi/v2/transaction_sides",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            response.raise_for_status()
-            data = response.json()
+        data = await client.get_global("/transaction_sides")
         return data.get("transactionSides", [])
 
     except Exception as e:
@@ -840,20 +812,10 @@ async def get_transaction_sides() -> list[dict[str, Any]]:
 
 async def get_property_types() -> list[dict[str, Any]]:
     """Get property types (residential, commercial, etc.)."""
-    from realtorai.integrations.docusign.auth import docusign_auth
-
-    token = await docusign_auth.get_access_token()
-    if not token:
-        return []
+    client = get_docusign_client()
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://demo.rooms.docusign.com/restapi/v2/property_types",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            response.raise_for_status()
-            data = response.json()
+        data = await client.get_global("/property_types")
         return data.get("propertyTypes", [])
 
     except Exception as e:

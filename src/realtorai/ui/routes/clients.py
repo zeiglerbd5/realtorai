@@ -88,9 +88,9 @@ async def list_clients_page(request: Request, status: str | None = None) -> HTML
     clients = await db.get_clients(status=status, limit=100)
 
     return templates.TemplateResponse(
+        request,
         "clients_list.html",
         {
-            "request": request,
             "clients": clients,
             "status_filter": status,
         },
@@ -162,9 +162,9 @@ async def get_client_detail(request: Request, client_id: int) -> HTMLResponse:
         transaction_progress = get_transaction_progress(transaction)
 
     return templates.TemplateResponse(
+        request,
         "client_detail.html",
         {
-            "request": request,
             "client": client,
             "content_raw": content_raw,
             "content_html": content_html,

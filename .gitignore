@@ -63,3 +63,7 @@ htmlcov/
 *.tmp
 *.temp
 .cache/
+
+# Agency-internal documents — kept locally for RAG, never published
+docs/policies_and_procedures.md
+docs/email_templates.md
