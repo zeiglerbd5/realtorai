@@ -65,7 +65,9 @@ _READ_TOOL_SCHEMAS: list[dict[str, Any]] = [
         "description": "Semantic search over the ingested knowledge base: Maine "
         "license law (Title 32 Ch. 114), Real Estate Commission rules, the NAR "
         "Code of Ethics, the team's policies manual, and email templates. Hits "
-        "carry [source — section] citations; cite them in answers.",
+        "carry [source — section] citations; cite them in answers. Prefer "
+        "kind=policies/templates day to day; kind=legal only for actual "
+        "legal or compliance questions.",
         "input_schema": {
             "type": "object",
             "properties": {

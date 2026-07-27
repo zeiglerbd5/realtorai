@@ -43,7 +43,11 @@ REPLY needs from the knowledge base — not what the email mentions. Choose 0-3 
 targeted queries: kind "legal" for Maine license law / Commission rules / NAR \
 ethics, "templates" for the team's email templates (e.g. the inspection- \
 scheduling or disclosure-request template), "policies" for office procedure. \
-Return an empty list when the reply needs no reference material."""
+Day-to-day drafting leans on "templates" and "policies" — reach for "legal" \
+ONLY when the email raises an actual legal or compliance question (agency \
+relationships, disclosures, license law), not merely because a transaction \
+is underway. Return an empty list when the reply needs no reference \
+material — most routine emails need none."""
 
 
 async def _plan_and_retrieve(email_body: str) -> str | None:
