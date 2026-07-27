@@ -35,7 +35,7 @@ missing" is always a current answer instead of an audit.
 git clone https://github.com/zeiglerbd5/realtorai.git && cd realtorai
 pip install -e ".[dev]"          # or: uv sync
 
-pytest                           # 99 tests, fully offline, ~1 second
+pytest                           # 105 tests, fully offline, ~2 seconds
 python scripts/demo_listing_workflow.py --fresh   # full intake on the reference listing
 realtorai-web                    # → http://127.0.0.1:8421
 ```
@@ -85,6 +85,21 @@ Master doc updated with findings             internal only, never filed to DTR
 
 Buyer clients get the same intake with a Buyer Agreement task list and no
 MLS activity.
+
+**Going under contract is a phase change, not a new deal.** When the signed
+Purchase & Sale arrives (classified `under_contract`, matched to the
+existing transaction by address), approval runs the next phase on the same
+record: contract terms extracted from the P&S with a focused schema (so
+listing-phase data can't be clobbered) and Opus-verified, the side's Under
+Contract task list joins the room, the signed contract is filed, the
+office's Transaction Worksheet is filled, the MLS listing moves to Pending,
+and every contract deadline (EMD, inspection, financing commitment,
+closing) lands on the dashboard as a dated item. Prior phases' timelines
+are archived on the envelope, never overwritten. Try it:
+
+```bash
+python scripts/demo_under_contract.py
+```
 
 ## The approval gate is structural
 
@@ -138,7 +153,7 @@ here are the two listings") classified as noise — the taxonomy was widened,
 and the fix is locked in by a runnable eval with fictionalized cases:
 
 ```bash
-python scripts/eval_intake_classifier.py    # 10/10, needs ANTHROPIC_API_KEY
+python scripts/eval_intake_classifier.py    # 12/12, needs ANTHROPIC_API_KEY
 ```
 
 ## Paperwork filling: capture once, verify once, fill everywhere
@@ -287,14 +302,16 @@ agent identities, or agency-internal forms.
 ## Status & roadmap
 
 Working today (on mock backends where noted): listing + buyer intake
-workflows, conversational approval queue, dashboard copilot, live public
-records for Penobscot-county properties, deterministic form filling, MLS
-readiness gating, email-intake proposals, 96-test offline suite.
+workflows, the under-contract phase (P&S extraction, UC/EMD task lists,
+Transaction Worksheet, MLS to Pending, deadline tracking), conversational
+approval queue, dashboard copilot, live public records for
+Penobscot-county properties, deterministic form filling, MLS readiness
+reporting, email-intake proposals, 105-test offline suite.
 
-Next: live Rooms/Spark cutover when broker + MLS approval lands; more
-county registry adapters (Hancock/AcclaimWeb, Waldo); under-contract
-workflow (P&S extraction, deadline tracking); calendar actions; LoRA
-fine-tuning on the accumulated approval feedback.
+Next: the closing phase workflow (settlement statement review, commission
+tracking); live Rooms/Spark cutover when broker + MLS approval lands; more
+county registry adapters (Hancock/AcclaimWeb, Waldo); calendar actions;
+LoRA fine-tuning on the accumulated approval feedback.
 
 See [PROGRESS.md](PROGRESS.md) for the detailed tracker.
 

@@ -11,8 +11,10 @@ the feature set. Live DocuSign Rooms / MLS cutover remains blocked on
 broker- and MLS-side API approval — the integrations run on simulators
 built to the live API shapes, so the cutover is two env vars.
 
-Recent: conversational approval queue (scoping copilot + structural
-go/no-go gate), verification that blocks downstream side effects, 49-field
+Recent: under-contract workflow (P&S terms extraction + verify, UC/EMD
+task lists, Transaction Worksheet, MLS to Pending, dashboard deadline
+tracking, phase-history preservation); conversational approval queue
+(scoping copilot + structural go/no-go gate), verification that blocks downstream side effects, 49-field
 MLS publish-readiness as the single validation source, atomic approval
 claims, CI (lint + offline suite).
 
@@ -86,7 +88,12 @@ claims, CI (lint + offline suite).
 - [x] Document-received workflow
 - [x] Lead management UI + lifecycle
 - [x] Client management UI (Add Client modal, Archive Client)
-- [x] Active Clients dashboard panel
+- [x] Listing + buyer intake workflows (approval-gated, resumable)
+- [x] Under-contract phase workflow (P&S extraction, UC/EMD task lists,
+      Transaction Worksheet, MLS to Pending, deadline tracking)
+- [x] Conversational approval queue + dashboard copilot (Claude API)
+- [x] Public-records pipeline (flood, tax map, tax card, deeds)
+- [ ] Closing phase workflow (settlement statement, commission tracking)
 - [ ] Buyer-listing matching engine
 - [ ] zipForm integration
 
@@ -104,16 +111,10 @@ claims, CI (lint + offline suite).
 
 ## What's blocking
 
-The technical surface is ahead of the human surface. The pieces that are
-hardest to build on speculation — fine-tuning corpus, iMessage capture,
-buyer-listing matching with real saved-search data, MLS credentials —
-all want a real Maine realtor running the daemon for a few weeks and
-telling me what's missing or wrong. Without that feedback loop the
-remaining work is either (a) easy to ship but easy to overbuild without
-ground truth, or (b) hard to ship and possibly wasted.
-
-So: paused, not abandoned. The build resumes when there's a working
-domain partner.
+Live API access only: DocuSign Rooms needs broker-account approval and
+Maine Listings (Flexmls/Spark) needs MLS approval — neither is
+self-serviceable by a TC. Everything else runs today on simulators built
+to the live API shapes; the cutover is two env vars.
 
 ---
 
@@ -132,11 +133,13 @@ realtorai web
 # Start email-polling daemon
 realtorai daemon --foreground
 
-# CLI chat with RAG (streaming)
-python scripts/chat.py
+# Demos (offline, mock backends)
+python scripts/demo_listing_workflow.py --fresh
+python scripts/demo_under_contract.py
 
-# CLI chat raw model (streaming)
-python scripts/chat_raw.py
+# Evals
+python scripts/eval_intake_classifier.py   # needs ANTHROPIC_API_KEY
+python scripts/eval_retrieval.py           # fully local
 
 # Ingest documents
 realtorai ingest /path/to/document.pdf
@@ -160,4 +163,4 @@ lsof -ti :8421 | xargs kill -9
 
 ---
 
-*Last updated: 2026-05-09*
+*Last updated: 2026-07-27*

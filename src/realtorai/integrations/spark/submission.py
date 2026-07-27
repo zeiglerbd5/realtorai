@@ -660,3 +660,18 @@ async def get_listing_status(listing_key: str) -> dict[str, Any] | None:
     except Exception as e:
         logger.error("listing_status_error", listing_key=listing_key, error=str(e))
         return None
+
+
+def update_listing_status(listing_key: str, status: str) -> tuple[bool, str]:
+    """Update listing status (mock backend; live Spark update not yet wired).
+
+    Returns (ok, detail). On the live backend this is a Spark PUT the MLS
+    must approve our key for — until then the step reports itself WAITING.
+    """
+    if _mock_backend():
+        from realtorai.integrations.spark.mock import get_mock_mls
+
+        if get_mock_mls().set_listing_status(listing_key, status.lower()):
+            return True, f"MLS listing {listing_key} -> {status}"
+        return False, f"listing {listing_key} not found in mock MLS"
+    return False, "live Spark status update not implemented — update in Flexmls"

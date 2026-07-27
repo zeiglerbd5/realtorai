@@ -47,6 +47,7 @@ class TransactionEnvelope(BaseModel):
     client_id: int | None = None
     client_name: str | None = None
     workflow: dict[str, Any] | None = None  # serialized WorkflowState (owned by workflows.engine)
+    workflow_history: list[dict[str, Any]] = Field(default_factory=list)  # prior phases
     artifacts: list[Artifact] = Field(default_factory=list)
     mls_listing_key: str | None = None
     created_at: datetime = Field(default_factory=_now)

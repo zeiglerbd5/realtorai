@@ -116,11 +116,16 @@ TASK_TOOL_SCHEMAS: list[dict[str, Any]] = _READ_TOOL_SCHEMAS + [
     {
         "name": "plan_workflow",
         "description": "Add a workflow to this task's plan. It does NOT run — "
-        "planned work executes only when the operator gives the word.",
+        "planned work executes only when the operator gives the word. "
+        "kind=intake (default) starts a new client workflow; "
+        "kind=under_contract runs the phase change on an EXISTING transaction "
+        "and requires transaction_slug (find it via list_active_transactions).",
         "input_schema": {
             "type": "object",
             "properties": {
                 "side": {"type": "string", "enum": ["listing", "buyer"]},
+                "kind": {"type": "string", "enum": ["intake", "under_contract"]},
+                "transaction_slug": {"type": "string"},
                 "client_name": {"type": "string"},
                 "property_address": {"type": "string"},
                 "note": {
@@ -128,7 +133,6 @@ TASK_TOOL_SCHEMAS: list[dict[str, Any]] = _READ_TOOL_SCHEMAS + [
                     "description": "Scoping notes for extraction (amendments, focus)",
                 },
             },
-            "required": ["side"],
         },
     },
     {
@@ -324,22 +328,41 @@ def _task_tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
         return f"Attached {source.name} to the intake bundle."
 
     def plan_workflow(
-        side: str,
+        side: str | None = None,
+        kind: str = "intake",
+        transaction_slug: str | None = None,
         client_name: str | None = None,
         property_address: str | None = None,
         note: str | None = None,
     ) -> str:
         planned = state.setdefault("planned_actions", [])
+        if kind == "under_contract":
+            if not transaction_slug:
+                return "under_contract needs transaction_slug — check " \
+                       "list_active_transactions for the deal."
+            from realtorai.storage.transaction_store import load_transaction
+
+            if load_transaction(transaction_slug) is None:
+                return f"No transaction '{transaction_slug}' — check " \
+                       "list_active_transactions."
+        elif side not in ("listing", "buyer"):
+            return "intake needs side='listing' or 'buyer'."
         planned.append(
             {
+                "kind": kind,
                 "side": side,
+                "transaction_slug": transaction_slug,
                 "client_name": client_name,
                 "property_address": property_address,
                 "note": note,
             }
         )
-        return f"Planned #{len(planned)}: {side} workflow — {client_name or '?'}, " \
-               f"{property_address or '?'}. Runs on the operator's word."
+        what = (
+            f"under-contract phase on {transaction_slug}"
+            if kind == "under_contract"
+            else f"{side} workflow — {client_name or '?'}, {property_address or '?'}"
+        )
+        return f"Planned #{len(planned)}: {what}. Runs on the operator's word."
 
     def unplan_workflow(index: int) -> str:
         planned = state.setdefault("planned_actions", [])

@@ -80,7 +80,9 @@ def _documents_block(documents: list[PaperworkDocument]) -> str:
 class IntakeClassification(BaseModel):
     """What kind of new-client intake an email represents."""
 
-    intent: Literal["new_listing_client", "new_buyer_client", "other"]
+    intent: Literal[
+        "new_listing_client", "new_buyer_client", "under_contract", "other"
+    ]
     client_name: str | None = Field(default=None, description="Client name if identifiable")
     property_address: str | None = Field(default=None, description="Listing address if present")
     confidence: Literal["high", "medium", "low"]
@@ -94,9 +96,12 @@ completed DocuSign envelope with an ERTS or buyer agreement attached), or a pros
 handoff from an agent naming the new client and their property — possibly with no \
 attachments, and rooms/documents may already exist. "new_listing_client" = seller \
 side (Exclusive Right to Sell). "new_buyer_client" = buyer side (Exclusive Buyer \
-Representation Agreement). Anything else — activity on deals already in progress \
-(offers, counters, earnest money, disclosures, showings), office broadcasts, \
-vendor mail, marketing — is "other". If one email hands off multiple new clients, \
+Representation Agreement). "under_contract" = an ACCEPTED offer on an existing \
+deal — a fully signed Purchase & Sale Agreement (completed envelope, "we're \
+under contract", accepted-offer announcement). A mere offer, counter, or \
+negotiation is NOT under_contract. Anything else — deal chatter (offers, \
+counters, earnest money, disclosures, showings), office broadcasts, vendor \
+mail, marketing — is "other". If one email hands off multiple new clients, \
 put the first in client_name/property_address and list the rest in reasoning."""
 
 

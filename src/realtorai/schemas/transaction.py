@@ -53,7 +53,7 @@ class TransactionRecord(BaseModel):
     listing_agreement_type: Literal["ER", "EA"] | None = Field(
         default=None, description="Exclusive Right to Sell / Exclusive Agency"
     )
-    listing_status: Literal["Active", "Coming Soon — No Show"] | None = None
+    listing_status: Literal["Active", "Coming Soon — No Show", "Pending", "Closed"] | None = None
     listing_expiration_date: date | None = None
     comp_listing: bool | None = None
     kick_out: bool | None = None
@@ -183,6 +183,7 @@ class TransactionRecord(BaseModel):
     final_sale_price: Decimal | None = None
     contract_amount: Decimal | None = None
     emd_amount: Decimal | None = None
+    emd_due_date: date | None = None
     entity_holding_emd: str | None = None
     seller_concession_amount: Decimal | None = None
     list_side_commission_pct: Decimal | None = None

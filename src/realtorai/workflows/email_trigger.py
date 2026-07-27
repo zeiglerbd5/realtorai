@@ -33,12 +33,15 @@ logger = structlog.get_logger()
 
 _LISTING_HINTS = ("exclusive right to sell", "listing agreement", "new listing")
 _BUYER_HINTS = ("buyer representation", "buyer rep", "buyer agreement", "new buyer")
+_UC_HINTS = ("purchase and sale", "purchase & sale", "under contract", "accepted offer")
 
 
 def _heuristic_classification(subject: str, body: str) -> IntakeClassification:
     """Keyword fallback when the Claude API is not configured."""
     haystack = f"{subject}\n{body}".lower()
-    if any(h in haystack for h in _LISTING_HINTS):
+    if any(h in haystack for h in _UC_HINTS):
+        intent = "under_contract"
+    elif any(h in haystack for h in _LISTING_HINTS):
         intent = "new_listing_client"
     elif any(h in haystack for h in _BUYER_HINTS):
         intent = "new_buyer_client"
@@ -49,6 +52,20 @@ def _heuristic_classification(subject: str, body: str) -> IntakeClassification:
         confidence="low",
         reasoning="keyword heuristic (offline mode)",
     )
+
+
+def _match_transaction(property_address: str | None) -> str | None:
+    """Find an existing transaction whose street address matches (casefold)."""
+    if not property_address:
+        return None
+    from realtorai.storage.transaction_store import list_transactions
+
+    needle = property_address.lower()
+    for env in list_transactions():
+        street = (env.record.street_address or "").lower()
+        if street and (street in needle or needle in street):
+            return env.slug
+    return None
 
 
 def _opening_question(
@@ -114,6 +131,10 @@ async def propose_new_client_workflow(
     )
     if classification.intent == "other":
         return None
+    if classification.intent == "under_contract":
+        return await _propose_under_contract(
+            classification, subject, body, attachments, source=source
+        )
 
     # Persist the intake bundle for the post-approval execution step
     intake_id = f"intake_{uuid.uuid4().hex[:10]}"
@@ -158,6 +179,85 @@ async def propose_new_client_workflow(
         confidence=classification.confidence,
     )
     logger.info("workflow_kickoff_proposed", task_id=task_id, side=side, intake=intake_id)
+    return task_id
+
+
+async def _propose_under_contract(
+    classification: IntakeClassification,
+    subject: str,
+    body: str,
+    attachments: list[tuple[str, bytes]],
+    *,
+    source: str,
+) -> str | None:
+    """Queue an under-contract phase change on an existing transaction."""
+    from realtorai.config.settings import get_settings
+    from realtorai.orchestration.queue import task_queue
+    from realtorai.schemas.tasks import TaskType
+
+    slug = _match_transaction(classification.property_address)
+
+    intake_id = f"intake_{uuid.uuid4().hex[:10]}"
+    intake_dir = get_settings().data_dir / "intake" / intake_id
+    intake_dir.mkdir(parents=True, exist_ok=True)
+    (intake_dir / "email.json").write_text(
+        json.dumps({"subject": subject, "body": body, "source": source}, indent=2)
+    )
+    for name, content in attachments:
+        (intake_dir / Path(name).name).write_bytes(content)
+
+    where = classification.property_address or "the property"
+    if slug:
+        question = (
+            f"Looks like {where} just went under contract. Want me to run the "
+            f"under-contract phase on {slug}: UC task list, file the P&S, "
+            "Transaction Worksheet, MLS to Pending, and deadline tracking?"
+        )
+    else:
+        question = (
+            f"This reads as an accepted contract on {where}, but I can't match "
+            "it to a transaction I'm tracking. Tell me which one (or reject if "
+            "it's not ours)."
+        )
+    if not attachments:
+        question += (
+            " No P&S came attached — include its file path in your reply and "
+            "I'll extract the contract terms from it."
+        )
+
+    task_id = await task_queue.add_custom_task(
+        task_type=TaskType.WORKFLOW_KICKOFF,
+        title="Deal under contract — run the under-contract phase?",
+        summary=subject[:80],
+        details={
+            "intent": classification.intent,
+            "client_name": classification.client_name,
+            "property_address": classification.property_address,
+            "transaction_slug": slug,
+            "attachments": [Path(n).name for n, _ in attachments],
+            "classifier_reasoning": classification.reasoning,
+            "source": source,
+        },
+        proposal_data={
+            "action": "run_intake_workflow",
+            "intake_dir": str(intake_dir),
+            "client_name": classification.client_name,
+            "conversation": [{"role": "agent", "text": question}],
+            "planned_actions": [
+                {
+                    "kind": "under_contract",
+                    "transaction_slug": slug,
+                    "side": None,
+                    "client_name": classification.client_name,
+                    "property_address": classification.property_address,
+                    "note": None,
+                }
+            ],
+        },
+        reasoning_summary=classification.reasoning,
+        confidence=classification.confidence,
+    )
+    logger.info("under_contract_proposed", task_id=task_id, slug=slug, intake=intake_id)
     return task_id
 
 

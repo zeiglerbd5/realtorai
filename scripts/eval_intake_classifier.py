@@ -53,6 +53,22 @@ CASES: list[tuple[str, str, list[str], str]] = [
         "new_buyer_client",
     ),
     (
+        "Completed: Purchase and Sale Agreement - 14 Ledgeview",
+        "All parties have completed Purchase and Sale Agreement for 14 "
+        "Ledgeview Drive, Holden. This message was sent to you by Agent One "
+        "using the Docusign Electronic Signature Service.",
+        ["Purchase_and_Sale_Agreement.pdf"],
+        "under_contract",
+    ),
+    (
+        "we're under contract!",
+        "Great news — the sellers signed last night, we are under contract "
+        "on 3 Quarry Road at $310,000. Closing September 15. I'll drop the "
+        "EMD off tomorrow morning.",
+        [],
+        "under_contract",
+    ),
+    (
         "Seller Counter Offer",
         "Hi both, attached is the seller counter. I'd recommend that you sign "
         "today so we have an extra day for inspections. $285,000 purchase price, "
