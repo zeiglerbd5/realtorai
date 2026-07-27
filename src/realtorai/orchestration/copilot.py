@@ -118,13 +118,14 @@ TASK_TOOL_SCHEMAS: list[dict[str, Any]] = _READ_TOOL_SCHEMAS + [
         "description": "Add a workflow to this task's plan. It does NOT run — "
         "planned work executes only when the operator gives the word. "
         "kind=intake (default) starts a new client workflow; "
-        "kind=under_contract runs the phase change on an EXISTING transaction "
-        "and requires transaction_slug (find it via list_active_transactions).",
+        "kind=under_contract / kind=closing run those phase changes on an "
+        "EXISTING transaction and require transaction_slug (find it via "
+        "list_active_transactions).",
         "input_schema": {
             "type": "object",
             "properties": {
                 "side": {"type": "string", "enum": ["listing", "buyer"]},
-                "kind": {"type": "string", "enum": ["intake", "under_contract"]},
+                "kind": {"type": "string", "enum": ["intake", "under_contract", "closing"]},
                 "transaction_slug": {"type": "string"},
                 "client_name": {"type": "string"},
                 "property_address": {"type": "string"},
@@ -336,9 +337,9 @@ def _task_tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
         note: str | None = None,
     ) -> str:
         planned = state.setdefault("planned_actions", [])
-        if kind == "under_contract":
+        if kind in ("under_contract", "closing"):
             if not transaction_slug:
-                return "under_contract needs transaction_slug — check " \
+                return f"{kind} needs transaction_slug — check " \
                        "list_active_transactions for the deal."
             from realtorai.storage.transaction_store import load_transaction
 
@@ -358,8 +359,8 @@ def _task_tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
             }
         )
         what = (
-            f"under-contract phase on {transaction_slug}"
-            if kind == "under_contract"
+            f"{kind.replace('_', '-')} phase on {transaction_slug}"
+            if kind in ("under_contract", "closing")
             else f"{side} workflow — {client_name or '?'}, {property_address or '?'}"
         )
         return f"Planned #{len(planned)}: {what}. Runs on the operator's word."

@@ -1,10 +1,10 @@
-"""Demo: the under-contract phase change on the reference listing.
+"""Demo: the under-contract and closing phases on the reference listing.
 
 Runs the listing intake first if needed, then applies demo contract terms
 (the offline stand-in for P&S extraction) and runs the UC workflow: UC task
 list, Transaction Worksheet, MLS to Pending, deadline tracking.
 
-    python scripts/demo_under_contract.py
+    python scripts/demo_lifecycle.py
 """
 
 import asyncio
@@ -48,7 +48,27 @@ async def main() -> None:
     task_lists = await rooms.get_room_task_lists(envelope.record.docusign_room_id)
     print("\nRoom task lists:", ", ".join(t["name"] for t in task_lists))
     print(f"Listing status: {envelope.record.listing_status}")
-    print(f"Prior phases archived: {[w['name'] for w in envelope.workflow_history]}")
+
+    from realtorai.workflows.closing import start_closing_workflow
+
+    envelope = await start_closing_workflow(
+        slug,
+        closing_terms={
+            "final_sale_price": "310000",
+            "closing_date": "2026-09-15",
+            "total_commission": "18600",
+        },
+    )
+    print(f"\n=== Closing: {envelope.slug} ===")
+    for step in envelope.workflow["steps"]:
+        detail = f" — {step['detail']}" if step.get("detail") else ""
+        print(f"  [{step['status']:7s}] {step['title']}{detail}")
+
+    room = await rooms.get_room(envelope.record.docusign_room_id)
+    print(f"\nRoom status: {room['roomStatus']} ({room.get('closedDate')})")
+    print(f"Listing status: {envelope.record.listing_status}")
+    print(f"Phases: {[w['name'] for w in envelope.workflow_history]} -> "
+          f"{envelope.workflow['name']}")
     await close_database()
 
 

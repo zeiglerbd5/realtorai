@@ -11,7 +11,8 @@ the feature set. Live DocuSign Rooms / MLS cutover remains blocked on
 broker- and MLS-side API approval — the integrations run on simulators
 built to the live API shapes, so the cutover is two env vars.
 
-Recent: under-contract workflow (P&S terms extraction + verify, UC/EMD
+Recent: closing workflow (settlement-statement review with discrepancy
+holds, room close-out, MLS to Closed); under-contract workflow (P&S terms extraction + verify, UC/EMD
 task lists, Transaction Worksheet, MLS to Pending, dashboard deadline
 tracking, phase-history preservation); conversational approval queue
 (scoping copilot + structural go/no-go gate), verification that blocks downstream side effects, 49-field
@@ -93,7 +94,8 @@ claims, CI (lint + offline suite).
       Transaction Worksheet, MLS to Pending, deadline tracking)
 - [x] Conversational approval queue + dashboard copilot (Claude API)
 - [x] Public-records pipeline (flood, tax map, tax card, deeds)
-- [ ] Closing phase workflow (settlement statement, commission tracking)
+- [x] Closing phase workflow (statement review w/ team-rule holds,
+      TW final numbers, MLS Closed, room close-out, client closed)
 - [ ] Buyer-listing matching engine
 - [ ] zipForm integration
 
@@ -135,7 +137,7 @@ realtorai daemon --foreground
 
 # Demos (offline, mock backends)
 python scripts/demo_listing_workflow.py --fresh
-python scripts/demo_under_contract.py
+python scripts/demo_lifecycle.py
 
 # Evals
 python scripts/eval_intake_classifier.py   # needs ANTHROPIC_API_KEY

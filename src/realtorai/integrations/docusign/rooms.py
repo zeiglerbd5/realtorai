@@ -154,6 +154,29 @@ async def delete_room(room_id: int) -> bool:
         return False
 
 
+async def close_room(
+    room_id: int, closed_date: str, reason: str = "sold"
+) -> bool:
+    """Close a room (deal completed) — sets roomStatus and closedDate."""
+    client = get_docusign_client()
+
+    try:
+        await client.put(
+            f"/rooms/{room_id}",
+            json_data={
+                "roomStatus": "Closed",
+                "closedDate": closed_date,
+                "closedStatusId": reason,
+            },
+        )
+        logger.info("room_closed", room_id=room_id, closed_date=closed_date)
+        return True
+
+    except Exception as e:
+        logger.error("room_close_error", room_id=room_id, error=str(e))
+        return False
+
+
 # =============================================================================
 # Room Users - Manage parties in a transaction
 # =============================================================================
