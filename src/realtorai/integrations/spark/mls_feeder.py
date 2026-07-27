@@ -319,9 +319,12 @@ def update_photos_in_feeder(client_id: int, name: str) -> dict[str, Any]:
 
 
 def get_feeder_completeness(feeder: dict[str, Any]) -> dict[str, Any]:
-    """Check how complete the feeder is for MLS submission.
+    """Informational fill meter for the feeder (UI progress display).
 
-    Returns a report of missing required fields.
+    This is NOT the publish gate — publish readiness is judged by the
+    49-field model in schemas/mls_required against the canonical
+    TransactionRecord. This meter just shows how filled-in the feeder's
+    core fields are while data is being gathered.
     """
     required_fields = {
         "address.street_number": feeder.get("address", {}).get("street_number"),

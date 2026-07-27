@@ -22,7 +22,6 @@ from realtorai.config.settings import get_settings
 from realtorai.integrations.spark.auth import spark_auth
 from realtorai.integrations.spark.client import SPARK_API_BASE, get_spark_client
 from realtorai.integrations.spark.mls_feeder import (
-    get_feeder_completeness,
     get_mls_feeder,
     set_feeder_status,
 )
@@ -175,28 +174,25 @@ async def validate_feeder_for_submission(
     client_id: int,
     name: str,
 ) -> tuple[bool, list[str]]:
-    """Validate that a feeder is ready for MLS submission.
+    """Draft-floor validation for the legacy feeder/UI path.
 
-    Args:
-        client_id: Client database ID
-        name: Client name
-
-    Returns:
-        Tuple of (is_valid, list of error messages)
+    Uses the same DRAFT_FLOOR_FIELDS floor as the canonical workflow path
+    (create_draft_listing) — a draft needs an address, a type, and a price,
+    nothing more. Publish readiness is NOT judged here: that is
+    schemas/mls_required (the 49-field model), applied when the canonical
+    TransactionRecord is available.
     """
     feeder = get_mls_feeder(client_id, name)
 
     if not feeder:
         return False, ["No MLS feeder found for this client"]
 
-    completeness = get_feeder_completeness(feeder)
-    errors = []
+    errors = [
+        f"Missing required field: {field}"
+        for field, get in DRAFT_FLOOR_FIELDS.items()
+        if get(feeder) is None
+    ]
 
-    if not completeness["complete"]:
-        for field in completeness["missing_fields"]:
-            errors.append(f"Missing required field: {field}")
-
-    # Additional validation
     prop_type = feeder.get("property", {}).get("type")
     if prop_type and prop_type not in PROPERTY_TYPE_MAP:
         errors.append(f"Unknown property type: {prop_type}")
@@ -586,8 +582,15 @@ async def submit_listing_with_photos(
     if not feeder:
         raise ListingSubmissionError("No MLS feeder found")
 
-    # Create the draft listing
-    listing_result = await create_draft_listing(client_id, name)
+    # Create the draft listing — with the canonical record when this client
+    # has a transaction envelope, so the 49-field readiness rides along
+    from realtorai.storage.transaction_store import list_transactions
+
+    record = next(
+        (env.record for env in list_transactions() if env.client_id == client_id),
+        None,
+    )
+    listing_result = await create_draft_listing(client_id, name, record=record)
 
     # Upload photos if available
     photos_folder = feeder.get("media", {}).get("photos_folder")
