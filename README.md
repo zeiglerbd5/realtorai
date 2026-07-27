@@ -23,6 +23,12 @@ The AI components run on the Claude API with per-task model routing
 (Sonnet 5 for high-volume structured work, Opus 4.8 for verification and
 deed review) and were validated against real inbox traffic.
 
+A transaction's paperwork never arrives all at once — the signed agreement
+comes Tuesday, disclosures Friday, the seller's answers whenever. The
+system is built for that: workflows wait without blocking, every new
+document advances everything it touches immediately, and "what's still
+missing" is always a current answer instead of an audit.
+
 ## Five-minute tour (no API keys required)
 
 ```bash
