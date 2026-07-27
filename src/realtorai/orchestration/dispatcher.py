@@ -192,7 +192,7 @@ class Dispatcher:
 
     async def _handle_search_listings(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle search_listings tool call - executes directly."""
-        from realtorai.integrations.spark import search_listings, spark_auth, format_listing_summary
+        from realtorai.integrations.spark import format_listing_summary, search_listings, spark_auth
 
         if not await spark_auth.is_connected():
             return {"error": "Spark API not connected. Please authenticate first."}
@@ -211,9 +211,14 @@ class Dispatcher:
             )
 
             if not results:
-                return {"status": "success", "count": 0, "listings": [], "summary": "No listings found."}
+                return {
+                    "status": "success",
+                    "count": 0,
+                    "listings": [],
+                    "summary": "No listings found.",
+                }
 
-            summaries = [format_listing_summary(l) for l in results]
+            summaries = [format_listing_summary(listing) for listing in results]
             return {
                 "status": "success",
                 "count": len(results),
@@ -226,7 +231,7 @@ class Dispatcher:
 
     async def _handle_get_listing_details(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle get_listing_details tool call - executes directly."""
-        from realtorai.integrations.spark import get_listing, spark_auth, format_listing_summary
+        from realtorai.integrations.spark import format_listing_summary, get_listing, spark_auth
 
         if not await spark_auth.is_connected():
             return {"error": "Spark API not connected. Please authenticate first."}
@@ -251,7 +256,7 @@ class Dispatcher:
 
     async def _handle_find_comps(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle find_comps tool call - executes directly."""
-        from realtorai.integrations.spark import find_comps, spark_auth, format_listing_summary
+        from realtorai.integrations.spark import find_comps, format_listing_summary, spark_auth
 
         if not await spark_auth.is_connected():
             return {"error": "Spark API not connected. Please authenticate first."}
@@ -267,9 +272,14 @@ class Dispatcher:
             )
 
             if not results:
-                return {"status": "success", "count": 0, "comps": [], "summary": "No comparable sales found."}
+                return {
+                    "status": "success",
+                    "count": 0,
+                    "comps": [],
+                    "summary": "No comparable sales found.",
+                }
 
-            summaries = [format_listing_summary(l) for l in results]
+            summaries = [format_listing_summary(listing) for listing in results]
             return {
                 "status": "success",
                 "count": len(results),
@@ -316,7 +326,7 @@ class Dispatcher:
 
     async def _handle_web_search(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle web_search tool call - executes directly."""
-        from realtorai.integrations.web import web_search, format_search_results
+        from realtorai.integrations.web import format_search_results, web_search
 
         query = args.get("query")
         if not query:
@@ -390,7 +400,12 @@ class Dispatcher:
             )
 
             if not clients:
-                return {"status": "success", "count": 0, "clients": [], "summary": "No clients found."}
+                return {
+                    "status": "success",
+                    "count": 0,
+                    "clients": [],
+                    "summary": "No clients found.",
+                }
 
             summaries = []
             for c in clients:
@@ -410,8 +425,8 @@ class Dispatcher:
 
     async def _handle_read_client_profile(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle read_client_profile tool call - executes directly."""
-        from realtorai.storage.database import get_database
         from realtorai.storage.client_files import read_client_file
+        from realtorai.storage.database import get_database
 
         client_id = args.get("client_id")
         client_name = args.get("client_name")
@@ -447,8 +462,8 @@ class Dispatcher:
 
     async def _handle_update_client_profile(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle update_client_profile tool call - executes directly."""
-        from realtorai.storage.database import get_database
         from realtorai.storage.client_files import append_note, update_client_header
+        from realtorai.storage.database import get_database
 
         client_id = args.get("client_id")
         if not client_id:
@@ -497,8 +512,8 @@ class Dispatcher:
 
     async def _handle_add_pending_item(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle add_pending_item tool call - executes directly."""
-        from realtorai.storage.database import get_database
         from realtorai.storage.client_files import add_pending_item
+        from realtorai.storage.database import get_database
 
         client_id = args.get("client_id")
         description = args.get("description")
@@ -542,7 +557,7 @@ class Dispatcher:
 
     async def _handle_get_matterport_tour(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle get_matterport_tour tool call - downloads tour to client folder."""
-        from realtorai.integrations.matterport import matterport_auth, download_tour_assets
+        from realtorai.integrations.matterport import download_tour_assets, matterport_auth
         from realtorai.storage.database import get_database
 
         client_id = args.get("client_id")
@@ -582,7 +597,8 @@ class Dispatcher:
                 "embed_url": result.get("embed_url"),
                 "summary": (
                     f"Downloaded Matterport tour '{result.get('model_name', model_id)}' "
-                    f"with {result.get('images_downloaded', 0)} images to {result.get('matterport_dir')}"
+                    f"with {result.get('images_downloaded', 0)} images "
+                    f"to {result.get('matterport_dir')}"
                 ),
             }
         except Exception as e:
@@ -591,7 +607,7 @@ class Dispatcher:
 
     async def _handle_list_matterport_models(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle list_matterport_models tool call - lists available tours."""
-        from realtorai.integrations.matterport import matterport_auth, list_models
+        from realtorai.integrations.matterport import list_models, matterport_auth
         from realtorai.integrations.matterport.models import format_model_summary
 
         if not await matterport_auth.is_connected():
@@ -669,7 +685,8 @@ class Dispatcher:
                 "summary": (
                     f"Downloaded Matterport assets for {client['name']}: "
                     f"{result.get('files_extracted', 0)} files extracted "
-                    f"({result.get('images_count', 0)} images, {result.get('models_count', 0)} 3D models)"
+                    f"({result.get('images_count', 0)} images, "
+                    f"{result.get('models_count', 0)} 3D models)"
                 ),
             }
         except Exception as e:
@@ -681,9 +698,9 @@ class Dispatcher:
     async def _handle_update_mls_feeder(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle update_mls_feeder tool call - updates listing data."""
         from realtorai.integrations.spark.mls_feeder import (
-            update_mls_feeder,
             format_feeder_summary,
             get_feeder_completeness,
+            update_mls_feeder,
         )
         from realtorai.storage.database import get_database
 
@@ -732,9 +749,9 @@ class Dispatcher:
     async def _handle_get_mls_feeder(self, args: dict[str, Any]) -> dict[str, Any]:
         """Handle get_mls_feeder tool call - retrieves feeder status."""
         from realtorai.integrations.spark.mls_feeder import (
-            get_mls_feeder,
             format_feeder_summary,
             get_feeder_completeness,
+            get_mls_feeder,
         )
         from realtorai.storage.database import get_database
 
@@ -754,7 +771,8 @@ class Dispatcher:
                 return {
                     "status": "success",
                     "has_feeder": False,
-                    "message": "No MLS feeder exists yet for this client. Use update_mls_feeder to start collecting listing data.",
+                    "message": "No MLS feeder exists yet for this client. "
+                    "Use update_mls_feeder to start collecting listing data.",
                 }
 
             completeness = get_feeder_completeness(feeder)

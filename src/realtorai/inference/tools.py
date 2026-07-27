@@ -9,7 +9,8 @@ SEND_EMAIL_TOOL = {
     "type": "function",
     "function": {
         "name": "send_email",
-        "description": "Send an email to a recipient. The email will be queued for agent approval before actually sending.",
+        "description": "Send an email to a recipient. The email will be queued for agent "
+        "approval before actually sending.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -88,7 +89,8 @@ CREATE_REMINDER_TOOL = {
                 },
                 "due_date": {
                     "type": "string",
-                    "description": "When the reminder is due (ISO format or relative like 'tomorrow')",
+                    "description": "When the reminder is due (ISO format or relative like "
+                    "'tomorrow')",
                 },
                 "related_contact": {
                     "type": "string",
@@ -140,7 +142,8 @@ SEARCH_LISTINGS_TOOL = {
     "type": "function",
     "function": {
         "name": "search_listings",
-        "description": "Search MLS listings for properties matching criteria. Use this to find homes for clients.",
+        "description": "Search MLS listings for properties matching criteria. "
+        "Use this to find homes for clients.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -248,7 +251,8 @@ GET_MARKET_STATS_TOOL = {
     "type": "function",
     "function": {
         "name": "get_market_stats",
-        "description": "Get market statistics for an area including active listings, recent sales, and median prices.",
+        "description": "Get market statistics for an area including active listings, "
+        "recent sales, and median prices.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -271,7 +275,8 @@ CREATE_CLIENT_TOOL = {
     "type": "function",
     "function": {
         "name": "create_client",
-        "description": "Create a new client record with a markdown profile file. Use this when the agent mentions a new client.",
+        "description": "Create a new client record with a markdown profile file. "
+        "Use this when the agent mentions a new client.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -333,7 +338,8 @@ READ_CLIENT_PROFILE_TOOL = {
     "type": "function",
     "function": {
         "name": "read_client_profile",
-        "description": "Read a client's full markdown profile including notes and history. Use this to get context about a client.",
+        "description": "Read a client's full markdown profile including notes and history. "
+        "Use this to get context about a client.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -355,7 +361,8 @@ UPDATE_CLIENT_PROFILE_TOOL = {
     "type": "function",
     "function": {
         "name": "update_client_profile",
-        "description": "Update a client's profile. Can add notes, update status, or modify details.",
+        "description": "Update a client's profile. "
+        "Can add notes, update status, or modify details.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -422,7 +429,8 @@ GET_MATTERPORT_TOUR_TOOL = {
     "type": "function",
     "function": {
         "name": "get_matterport_tour",
-        "description": "Download a Matterport 3D tour and still images to a client's folder. Requires the Matterport model ID (found in the tour URL).",
+        "description": "Download a Matterport 3D tour and still images to a client's folder. "
+        "Requires the Matterport model ID (found in the tour URL).",
         "parameters": {
             "type": "object",
             "properties": {
@@ -466,7 +474,9 @@ DOWNLOAD_MATTERPORT_ZIP_TOOL = {
     "type": "function",
     "function": {
         "name": "download_matterport_zip",
-        "description": "Download Matterport assets from a zip link (typically from a Matterport email notification) and extract to a client's folder. Use this when you receive an email from Matterport with a download link.",
+        "description": "Download Matterport assets from a zip link (typically from a "
+        "Matterport email notification) and extract to a client's folder. "
+        "Use this when you receive an email from Matterport with a download link.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -480,7 +490,8 @@ DOWNLOAD_MATTERPORT_ZIP_TOOL = {
                 },
                 "email_body": {
                     "type": "string",
-                    "description": "Optionally provide the full email body to auto-extract the download URL",
+                    "description": "Optionally provide the full email body to auto-extract "
+                    "the download URL",
                 },
             },
             "required": ["client_id"],
@@ -493,7 +504,10 @@ UPDATE_MLS_FEEDER_TOOL = {
     "type": "function",
     "function": {
         "name": "update_mls_feeder",
-        "description": "Update the MLS listing feeder with property details extracted from emails, documents, or conversations. The feeder accumulates information until ready for MLS submission. Use this whenever you learn new details about a property listing.",
+        "description": "Update the MLS listing feeder with property details extracted from "
+        "emails, documents, or conversations. The feeder accumulates information until "
+        "ready for MLS submission. Use this whenever you learn new details about a "
+        "property listing.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -518,7 +532,10 @@ UPDATE_MLS_FEEDER_TOOL = {
                     "type": "object",
                     "description": "Property details",
                     "properties": {
-                        "type": {"type": "string", "description": "Residential, Condo, Townhouse, Land, Multi-Family"},
+                        "type": {
+                            "type": "string",
+                            "description": "Residential, Condo, Townhouse, Land, Multi-Family",
+                        },
                         "year_built": {"type": "integer"},
                         "bedrooms": {"type": "integer"},
                         "bathrooms_full": {"type": "integer"},
@@ -540,7 +557,10 @@ UPDATE_MLS_FEEDER_TOOL = {
                     "type": "object",
                     "description": "Marketing content",
                     "properties": {
-                        "public_remarks": {"type": "string", "description": "Main listing description"},
+                        "public_remarks": {
+                            "type": "string",
+                            "description": "Main listing description",
+                        },
                         "private_remarks": {"type": "string", "description": "Agent-only notes"},
                         "virtual_tour_url": {"type": "string"},
                     },
@@ -570,7 +590,8 @@ GET_MLS_FEEDER_TOOL = {
     "type": "function",
     "function": {
         "name": "get_mls_feeder",
-        "description": "Get the current MLS feeder status and contents for a client. Shows what property details have been collected and what's still missing.",
+        "description": "Get the current MLS feeder status and contents for a client. Shows "
+        "what property details have been collected and what's still missing.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -589,7 +610,8 @@ GET_TRANSACTION_TOOL = {
     "type": "function",
     "function": {
         "name": "get_transaction",
-        "description": "Get the current transaction tracker for a client. Shows deal status, dates, contacts, milestones, and documents for a property under contract.",
+        "description": "Get the current transaction tracker for a client. Shows deal status, "
+        "dates, contacts, milestones, and documents for a property under contract.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -607,7 +629,9 @@ UPDATE_TRANSACTION_TOOL = {
     "type": "function",
     "function": {
         "name": "update_transaction",
-        "description": "Update the transaction tracker with data extracted from emails, documents, or conversations. Use this when you learn key dates, contacts, or financial details about a deal.",
+        "description": "Update the transaction tracker with data extracted from emails, "
+        "documents, or conversations. Use this when you learn key dates, contacts, or "
+        "financial details about a deal.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -623,16 +647,25 @@ UPDATE_TRANSACTION_TOOL = {
                         "city": {"type": "string"},
                         "state": {"type": "string"},
                         "postal_code": {"type": "string"},
-                        "year_built": {"type": "integer", "description": "Important for Lead Paint (pre-1978)"},
+                        "year_built": {
+                            "type": "integer",
+                            "description": "Important for Lead Paint (pre-1978)",
+                        },
                     },
                 },
                 "dates": {
                     "type": "object",
                     "description": "Key transaction dates",
                     "properties": {
-                        "effective_date": {"type": "string", "description": "P&S effective date (ISO format)"},
+                        "effective_date": {
+                            "type": "string",
+                            "description": "P&S effective date (ISO format)",
+                        },
                         "inspection_deadline": {"type": "string"},
-                        "emd_due_date": {"type": "string", "description": "Earnest money deposit due date"},
+                        "emd_due_date": {
+                            "type": "string",
+                            "description": "Earnest money deposit due date",
+                        },
                         "loan_application_deadline": {"type": "string"},
                         "appraisal_deadline": {"type": "string"},
                         "closing_date": {"type": "string"},
@@ -646,7 +679,10 @@ UPDATE_TRANSACTION_TOOL = {
                     "description": "Financial details",
                     "properties": {
                         "purchase_price": {"type": "integer"},
-                        "emd_amount": {"type": "integer", "description": "Earnest money deposit amount"},
+                        "emd_amount": {
+                            "type": "integer",
+                            "description": "Earnest money deposit amount",
+                        },
                         "emd_delivered": {"type": "boolean"},
                         "loan_amount": {"type": "integer"},
                         "down_payment": {"type": "integer"},
@@ -662,7 +698,10 @@ UPDATE_TRANSACTION_TOOL = {
                                 "name": {"type": "string"},
                                 "email": {"type": "string"},
                                 "phone": {"type": "string"},
-                                "role": {"type": "string", "description": "buyer_agent or listing_agent"},
+                                "role": {
+                                    "type": "string",
+                                    "description": "buyer_agent or listing_agent",
+                                },
                             },
                         },
                         "lender": {
@@ -707,7 +746,8 @@ SET_MILESTONE_TOOL = {
     "type": "function",
     "function": {
         "name": "set_milestone",
-        "description": "Mark a transaction milestone as completed. Use this when an email confirms a milestone was reached.",
+        "description": "Mark a transaction milestone as completed. Use this when an email "
+        "confirms a milestone was reached.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -729,7 +769,8 @@ SET_MILESTONE_TOOL = {
                         "inspection_prep_email_sent", "utility_transfer_coordinated",
                         "closing_statement_reviewed", "closing_gift_reminder",
                         # Buyer milestones
-                        "loan_app_received", "proof_of_funds_received", "homeowners_insurance_quoted",
+                        "loan_app_received", "proof_of_funds_received",
+                        "homeowners_insurance_quoted",
                         "appraisal_ordered", "appraisal_received", "closing_disclosure_received",
                         "closing_disclosure_reviewed", "home_warranty_decision",
                         "utilities_setup_reminder", "comps_prepped_for_appraisal",
@@ -749,7 +790,8 @@ MARK_DOCUMENT_RECEIVED_TOOL = {
     "type": "function",
     "function": {
         "name": "mark_document_received",
-        "description": "Mark a transaction document as received. Use this when you learn a document was received.",
+        "description": "Mark a transaction document as received. Use this when you learn a "
+        "document was received.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -785,7 +827,8 @@ ADD_TRANSACTION_NOTE_TOOL = {
     "type": "function",
     "function": {
         "name": "add_transaction_note",
-        "description": "Add a note to a transaction tracker. Use for observations, issues, or important info.",
+        "description": "Add a note to a transaction tracker. Use for observations, issues, "
+        "or important info.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -812,7 +855,9 @@ WEB_SEARCH_TOOL = {
     "type": "function",
     "function": {
         "name": "web_search",
-        "description": "Search the web for current information. Use this to look up market data, property details, neighborhood info, mortgage rates, or anything you don't know.",
+        "description": "Search the web for current information. Use this to look up market "
+        "data, property details, neighborhood info, mortgage rates, or anything you "
+        "don't know.",
         "parameters": {
             "type": "object",
             "properties": {

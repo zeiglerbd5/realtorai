@@ -63,7 +63,8 @@ TRANSACTION_TEMPLATE = {
     # Documents - tracking receipt and status
     "documents": {
         "purchase_sale_agreement": {"received": False, "date": None, "reviewed": False},
-        "lead_paint_addendum": {"received": False, "date": None, "required": None},  # required if pre-1978
+        # required if pre-1978
+        "lead_paint_addendum": {"received": False, "date": None, "required": None},
         "deed": {"received": False, "date": None},
         "property_disclosures": {"received": False, "date": None, "signed_by_both": False},
         "addenda": [],  # list of {name, received, date}
@@ -71,7 +72,8 @@ TRANSACTION_TEMPLATE = {
         "proof_of_funds": {"received": False, "date": None},
         "appraisal": {"received": False, "date": None, "value": None},
         "inspection_report": {"received": False, "date": None},
-        "ica_repairs": {"received": False, "date": None, "verified": False},  # Inspection Contingency Addendum
+        # Inspection Contingency Addendum
+        "ica_repairs": {"received": False, "date": None, "verified": False},
         "closing_disclosure": {"received": False, "date": None, "reviewed": False},
         "settlement_statement": {"received": False, "date": None, "reviewed": False},
         "mls_spec_sheet": {"received": False, "date": None},
@@ -80,7 +82,8 @@ TRANSACTION_TEMPLATE = {
     # Contacts involved in the transaction
     "contacts": {
         "client": {"name": None, "email": None, "phone": None},
-        "other_agent": {"name": None, "email": None, "phone": None, "role": None},  # buyer's or listing agent
+        # buyer's or listing agent
+        "other_agent": {"name": None, "email": None, "phone": None, "role": None},
         "lender": {"name": None, "email": None, "phone": None, "company": None},
         "title_company": {"name": None, "email": None, "phone": None, "attorney": None},
         "inspector": {"name": None, "email": None, "phone": None},
@@ -197,6 +200,7 @@ def create_transaction(
         try:
             # Import here to avoid circular imports
             import asyncio
+
             from realtorai.storage.database import get_database
 
             async def get_client_type():
@@ -212,7 +216,7 @@ def create_transaction(
 
             # Try to run async function
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 # If we're in an async context, we can't use run()
                 representation = "seller"  # Default in async context
             except RuntimeError:
@@ -321,11 +325,13 @@ def set_milestone(
         transaction = create_transaction(client_id, name)
 
     # Check if it's a role-specific milestone
-    seller_milestones = ["mls_status_updated", "seller_disclosures_signed", "title_services_ordered",
-                         "inspection_prep_email_sent", "utility_transfer_coordinated",
-                         "closing_statement_reviewed", "closing_gift_reminder"]
-    buyer_milestones = ["loan_app_received", "proof_of_funds_received", "homeowners_insurance_quoted",
-                        "appraisal_ordered", "appraisal_received", "closing_disclosure_received",
+    seller_milestones = ["mls_status_updated", "seller_disclosures_signed",
+                         "title_services_ordered", "inspection_prep_email_sent",
+                         "utility_transfer_coordinated", "closing_statement_reviewed",
+                         "closing_gift_reminder"]
+    buyer_milestones = ["loan_app_received", "proof_of_funds_received",
+                        "homeowners_insurance_quoted", "appraisal_ordered",
+                        "appraisal_received", "closing_disclosure_received",
                         "closing_disclosure_reviewed", "home_warranty_decision",
                         "utilities_setup_reminder", "comps_prepped_for_appraisal"]
 
@@ -429,7 +435,9 @@ def get_transaction_progress(transaction: dict[str, Any]) -> dict[str, Any]:
     all_milestones = {**milestones, **role_milestones}
 
     # Count milestones
-    completed = sum(1 for m in all_milestones.values() if isinstance(m, dict) and m.get("completed"))
+    completed = sum(
+        1 for m in all_milestones.values() if isinstance(m, dict) and m.get("completed")
+    )
     total = len(all_milestones)
 
     # Count documents (excluding addenda list)
@@ -527,7 +535,9 @@ def format_transaction_summary(transaction: dict[str, Any]) -> str:
         f"Progress: {progress['overall_pct']}%",
         "",
         f"Property: {address}",
-        f"Purchase Price: ${financial.get('purchase_price'):,}" if financial.get('purchase_price') else "Purchase Price: Not set",
+        f"Purchase Price: ${financial.get('purchase_price'):,}"
+        if financial.get('purchase_price')
+        else "Purchase Price: Not set",
         f"Closing Date: {dates.get('closing_date') or 'Not set'}",
         "",
         f"Milestones: {progress['milestones_completed']}/{progress['milestones_total']}",

@@ -135,7 +135,7 @@ async def create_mls_draft(ctx: WorkflowContext) -> StepResult:
             source="workflow",
         )
 
-    result = await create_draft_listing(client_id, client_name)
+    result = await create_draft_listing(client_id, client_name, record=record)
     ctx.envelope.mls_listing_key = result["listing_key"]
     record.mls_number = str(result["listing_id"])
 

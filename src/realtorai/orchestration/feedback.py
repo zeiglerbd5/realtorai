@@ -7,9 +7,7 @@ from typing import Any
 
 import structlog
 
-
 from realtorai.config.settings import get_settings
-
 from realtorai.schemas.tasks import ApprovalStatus, FeedbackRecord, Task
 
 logger = structlog.get_logger()

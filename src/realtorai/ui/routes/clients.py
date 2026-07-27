@@ -8,28 +8,28 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from realtorai.storage.database import get_database
-from realtorai.storage.client_files import (
-    read_client_file,
-    write_client_file,
-)
 from realtorai.integrations.matterport.downloader import (
     get_client_matterport_dir,
     get_tour_info,
 )
 from realtorai.integrations.spark.mls_feeder import (
-    get_mls_feeder,
-    get_feeder_completeness,
-    update_mls_feeder,
     create_mls_feeder,
+    get_feeder_completeness,
+    get_mls_feeder,
+    update_mls_feeder,
 )
+from realtorai.storage.client_files import (
+    read_client_file,
+    write_client_file,
+)
+from realtorai.storage.database import get_database
 from realtorai.transactions import (
-    get_transaction,
     create_transaction,
-    update_transaction,
+    get_transaction,
     get_transaction_progress,
-    set_milestone,
     mark_document_received,
+    set_milestone,
+    update_transaction,
 )
 
 router = APIRouter()
@@ -307,7 +307,9 @@ async def get_client_matterport(client_id: int) -> dict:
     stills_dir = get_client_matterport_dir(client_id, client["name"]) / "stills"
     images = []
     if stills_dir.exists():
-        images = sorted([f.name for f in stills_dir.iterdir() if f.suffix.lower() in ('.jpg', '.jpeg', '.png')])
+        images = sorted(
+            [f.name for f in stills_dir.iterdir() if f.suffix.lower() in ('.jpg', '.jpeg', '.png')]
+        )
 
     return {
         "has_tour": True,
@@ -354,7 +356,7 @@ class MLSFeederUpdate(BaseModel):
 @router.post("/{client_id}/matterport/download")
 async def download_matterport_tour(client_id: int, request: MatterportDownload) -> dict:
     """Download a Matterport tour for a client."""
-    from realtorai.integrations.matterport import matterport_auth, download_tour_assets
+    from realtorai.integrations.matterport import download_tour_assets, matterport_auth
 
     db = await get_database()
     client = await db.get_client(client_id)
@@ -485,9 +487,9 @@ async def submit_mls_listing(client_id: int) -> dict:
     and publish in FlexMLS interface.
     """
     from realtorai.integrations.spark import (
+        ListingSubmissionError,
         spark_auth,
         submit_listing_with_photos,
-        ListingSubmissionError,
     )
 
     db = await get_database()
@@ -519,7 +521,7 @@ async def submit_mls_listing(client_id: int) -> dict:
 @router.get("/{client_id}/mls-feeder/status")
 async def get_mls_listing_status(client_id: int) -> dict:
     """Check status of submitted MLS listing."""
-    from realtorai.integrations.spark import spark_auth, get_listing_status
+    from realtorai.integrations.spark import get_listing_status, spark_auth
 
     db = await get_database()
     client = await db.get_client(client_id)
@@ -623,7 +625,7 @@ async def set_client_buyer_criteria(client_id: int, updates: BuyerCriteriaUpdate
 @router.post("/{client_id}/buyer-criteria/scan")
 async def scan_for_buyer_matches(client_id: int) -> dict:
     """Manually trigger a scan for new listings matching buyer criteria."""
-    from realtorai.integrations.spark import spark_auth, run_manual_scan
+    from realtorai.integrations.spark import run_manual_scan, spark_auth
 
     db = await get_database()
     client = await db.get_client(client_id)
@@ -642,14 +644,14 @@ async def scan_for_buyer_matches(client_id: int) -> dict:
         "matches_found": len(matches),
         "listings": [
             {
-                "listing_key": l.get("ListingKey"),
-                "address": l.get("UnparsedAddress"),
-                "city": l.get("City"),
-                "price": l.get("ListPrice"),
-                "beds": l.get("BedroomsTotal"),
-                "baths": l.get("BathroomsTotalInteger"),
+                "listing_key": listing.get("ListingKey"),
+                "address": listing.get("UnparsedAddress"),
+                "city": listing.get("City"),
+                "price": listing.get("ListPrice"),
+                "beds": listing.get("BedroomsTotal"),
+                "baths": listing.get("BathroomsTotalInteger"),
             }
-            for l in matches
+            for listing in matches
         ],
     }
 
@@ -740,7 +742,8 @@ async def update_client_transaction(client_id: int, updates: TransactionUpdate) 
 
     # Build update dict from non-None fields
     update_data = {}
-    for field in ["property", "dates", "financial", "documents", "contacts", "milestones", "seller", "buyer"]:
+    for field in ["property", "dates", "financial", "documents", "contacts",
+                  "milestones", "seller", "buyer"]:
         value = getattr(updates, field, None)
         if value is not None:
             update_data[field] = value
@@ -833,8 +836,8 @@ async def extract_data(client_id: int, request: ExtractionRequest) -> dict:
         Extraction results including what was updated
     """
     from realtorai.inference.extraction import (
-        extract_from_email,
         extract_from_document,
+        extract_from_email,
     )
 
     db = await get_database()
@@ -913,8 +916,8 @@ async def create_pending_item(
 async def create_docusign_room(client_id: int) -> dict:
     """Create a DocuSign Room for a client."""
     from realtorai.integrations.docusign import (
-        docusign_auth,
         create_room,
+        docusign_auth,
         get_roles,
     )
     from realtorai.storage.client_files import update_client_header

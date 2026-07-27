@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """Benchmark raw MLX model speed (no RAG, no UI)."""
 import time
-from mlx_lm import load, generate
+
+from mlx_lm import generate, load
 from mlx_lm.sample_utils import make_sampler
 
 from realtorai.config.settings import get_settings

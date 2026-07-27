@@ -40,9 +40,12 @@ async def verify_extraction(ctx: WorkflowContext) -> StepResult:
 
     criticals = [i for i in report.issues if i.severity == "critical"]
     if not report.safe_to_proceed or criticals:
+        # BLOCKED halts the workflow: no room, no forms, no MLS draft on data
+        # that failed the audit. Re-runs (and re-verifies) on resume.
         return StepResult(
-            status=StepStatus.WAITING,
-            detail=f"{len(criticals)} critical issue(s) — needs human review before filing",
+            status=StepStatus.BLOCKED,
+            detail=f"{len(criticals)} critical issue(s) — human review required; "
+            "downstream steps held",
         )
     return StepResult(detail=f"verified — {len(report.issues)} minor issue(s) noted")
 

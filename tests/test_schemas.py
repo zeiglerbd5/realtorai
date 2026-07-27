@@ -2,8 +2,6 @@
 Tests for Pydantic schemas.
 """
 
-import pytest
-from datetime import datetime, timezone
 
 
 class TestCommonSchemas:
@@ -59,7 +57,7 @@ class TestCommonSchemas:
 
     def test_chain_of_reasoning(self):
         """Test chain of reasoning schema."""
-        from realtorai.schemas.common import ChainOfReasoning, ReasoningStep, Confidence
+        from realtorai.schemas.common import ChainOfReasoning, Confidence, ReasoningStep
 
         chain = ChainOfReasoning(
             steps=[
@@ -98,12 +96,12 @@ class TestEmailSchemas:
 
     def test_email_classification(self):
         """Test email classification schema."""
+        from realtorai.schemas.common import Confidence, ContactReference
         from realtorai.schemas.email import (
             EmailClassification,
-            EmailPriority,
             EmailIntent,
+            EmailPriority,
         )
-        from realtorai.schemas.common import ContactReference, Confidence
 
         classification = EmailClassification(
             sender=ContactReference(email="client@example.com", name="Sarah"),
@@ -157,7 +155,7 @@ class TestTaskSchemas:
 
     def test_task_creation(self):
         """Test task model creation."""
-        from realtorai.schemas.tasks import Task, TaskType, ApprovalStatus
+        from realtorai.schemas.tasks import ApprovalStatus, Task, TaskType
 
         task = Task(
             id="task-123",
@@ -208,7 +206,7 @@ class TestTaskSchemas:
 
     def test_feedback_record(self):
         """Test feedback record for RL training."""
-        from realtorai.schemas.tasks import FeedbackRecord, TaskType, ApprovalStatus
+        from realtorai.schemas.tasks import ApprovalStatus, FeedbackRecord, TaskType
 
         record = FeedbackRecord(
             task_id="task-123",

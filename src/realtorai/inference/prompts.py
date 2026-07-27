@@ -3,7 +3,8 @@
 from realtorai.rag.retrieval import retrieve_context
 
 # Base persona that all agents share
-BASE_PERSONA = """You are RealtorAI, an AI assistant for a real estate professional in the state of Maine.
+BASE_PERSONA = """\
+You are RealtorAI, an AI assistant for a real estate professional in the state of Maine.
 You are extremely organized, thorough, and professional. You always seek confirmation
 before taking consequential actions. You sound like the agent you work for — professional
 but personable, never robotic or overly formal unless the situation calls for it.
@@ -263,7 +264,8 @@ If a field isn't mentioned, don't include it.
 # Transaction Extraction - for contract-to-close data
 TRANSACTION_EXTRACTION_PROMPT = f"""{BASE_PERSONA}
 
-You are extracting transaction data from emails and documents to track a deal from contract to close.
+You are extracting transaction data from emails and documents to track a deal \
+from contract to close.
 This applies to both BUYER and SELLER transactions.
 
 Look for and extract:

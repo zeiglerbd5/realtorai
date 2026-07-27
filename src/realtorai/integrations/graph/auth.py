@@ -10,9 +10,7 @@ from urllib.parse import parse_qs, urlparse
 import msal
 import structlog
 
-
 from realtorai.config.settings import get_settings
-
 from realtorai.integrations.base import Integration
 from realtorai.storage.keychain import KeychainKeys, keychain
 
@@ -109,7 +107,6 @@ class GraphAuth(Integration):
     async def _load_tokens(self) -> bool:
         """Load tokens from keychain."""
         access_token = keychain.get(KeychainKeys.GRAPH_ACCESS_TOKEN)
-        refresh_token = keychain.get(KeychainKeys.GRAPH_REFRESH_TOKEN)
         expiry_str = keychain.get(KeychainKeys.GRAPH_TOKEN_EXPIRY)
 
         if access_token and expiry_str:
@@ -126,7 +123,8 @@ class GraphAuth(Integration):
 
     def _save_tokens(self, access_token: str, refresh_token: str, expires_in: int) -> None:
         """Save tokens to keychain."""
-        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)  # 5 min buffer
+        # 5 min buffer
+        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)
 
         keychain.set(KeychainKeys.GRAPH_ACCESS_TOKEN, access_token)
         keychain.set(KeychainKeys.GRAPH_REFRESH_TOKEN, refresh_token)

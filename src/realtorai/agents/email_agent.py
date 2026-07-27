@@ -5,15 +5,15 @@ from typing import Any
 import structlog
 
 from realtorai.agents.base import Agent
+from realtorai.inference.extraction import create_extraction_proposals
 from realtorai.inference.prompts import (
     get_email_draft_prompt_with_rag,
     get_email_triage_prompt,
     with_reasoning,
 )
 from realtorai.inference.tools import EMAIL_AGENT_TOOLS
-from realtorai.inference.extraction import create_extraction_proposals
-from realtorai.orchestration.queue import task_queue
 from realtorai.integrations.graph.email import format_email_for_display, get_email_thread
+from realtorai.orchestration.queue import task_queue
 from realtorai.schemas.common import ChainOfReasoning, ReasoningStep
 from realtorai.schemas.email import DraftResponse, EmailClassification, EmailIntent, EmailProposal
 from realtorai.storage.database import get_database
@@ -189,8 +189,10 @@ or discuss specific properties until the client signs this agreement.
 Your response MUST:
 1. Welcome them warmly and thank them for reaching out
 2. Explain that before you can work together, they need to sign a Buyer Agency Agreement
-3. Offer to send the agreement and briefly explain what it covers (it establishes the working relationship)
-4. You can mention general next steps (like getting pre-approved) but do NOT schedule showings or discuss specific properties yet
+3. Offer to send the agreement and briefly explain what it covers \
+(it establishes the working relationship)
+4. You can mention general next steps (like getting pre-approved) but do NOT \
+schedule showings or discuss specific properties yet
 5. Keep it friendly and professional - this is standard practice, not a barrier
 
 Do NOT skip the agreement requirement. This is legally required in Maine.
@@ -266,7 +268,7 @@ Walk through your reasoning step by step."""
         prompt = with_reasoning(prompt)
 
         # Generate reasoning (free-form, then structure it)
-        reasoning_text = await self.generate(prompt=prompt, temperature=0.5)
+        await self.generate(prompt=prompt, temperature=0.5)
 
         # For now, create a simple reasoning chain
         # In the future, we could have the model output structured reasoning directly
@@ -284,7 +286,11 @@ Walk through your reasoning step by step."""
                 ),
                 ReasoningStep(
                     step=3,
-                    thought="Response needed" if classification.requires_response else "No response needed",
+                    thought=(
+                        "Response needed"
+                        if classification.requires_response
+                        else "No response needed"
+                    ),
                     observation=classification.subject_summary,
                 ),
             ],
@@ -330,9 +336,10 @@ Walk through your reasoning step by step."""
         # --- Look up client or lead early so we can use for both drafting and extraction ---
         db = await get_database()
         sender_email = formatted.get("from_email")
-        sender_name = formatted.get("from_name") or sender_email.split("@")[0] if sender_email else "Unknown"
+        sender_name = (
+            formatted.get("from_name") or sender_email.split("@")[0] if sender_email else "Unknown"
+        )
         client = None
-        is_new_lead = False
 
         if sender_email:
             # First check for active client
@@ -370,7 +377,6 @@ Walk through your reasoning step by step."""
 
                         # Fetch the lead we just created
                         client = await db.find_lead_by_email(sender_email)
-                        is_new_lead = True
 
                         logger.info(
                             "new_lead_created_from_email",
@@ -542,7 +548,9 @@ Walk through your reasoning step by step."""
         # Document patterns to match against pending items
         document_patterns = {
             "pre-approval": ["pre-approval", "preapproval", "pre approval", "loan approval"],
-            "buyer agency agreement": ["buyer agency", "agency agreement", "client agreement", "representation"],
+            "buyer agency agreement": [
+                "buyer agency", "agency agreement", "client agreement", "representation"
+            ],
             "proof of funds": ["proof of funds", "pof", "bank statement", "funds verification"],
             "inspection report": ["inspection report", "inspection", "home inspection"],
             "appraisal": ["appraisal", "appraisal report"],

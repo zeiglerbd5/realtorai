@@ -5,6 +5,7 @@ def main():
     print("Loading model and RAG...")
     from mlx_lm import load, stream_generate
     from mlx_lm.sample_utils import make_sampler
+
     from realtorai.config.settings import get_settings
     from realtorai.inference.prompts import get_conversation_prompt_with_rag
 
@@ -13,7 +14,7 @@ def main():
 
     # Conversation history
     conversation_history = []
-    MAX_HISTORY = 20
+    max_history = 20
 
     print("Ready!\n")
     print("Commands: 'quit' to exit, 'clear' to reset conversation\n")
@@ -49,7 +50,9 @@ def main():
         print("\nAssistant: ", end="", flush=True)
         response_text = []
 
-        for response in stream_generate(model, tokenizer, prompt=prompt, max_tokens=512, sampler=sampler):
+        for response in stream_generate(
+            model, tokenizer, prompt=prompt, max_tokens=512, sampler=sampler
+        ):
             print(response.text, end="", flush=True)
             response_text.append(response.text)
 
@@ -60,7 +63,7 @@ def main():
         conversation_history.append({"role": "assistant", "content": "".join(response_text)})
 
         # Trim history
-        while len(conversation_history) > MAX_HISTORY:
+        while len(conversation_history) > max_history:
             conversation_history.pop(0)
 
 main()

@@ -4,8 +4,8 @@ Provides functions for searching MLS listings, retrieving property details,
 and finding comparable properties.
 """
 
-from typing import Any
 from datetime import datetime, timedelta
+from typing import Any
 
 import structlog
 
@@ -259,8 +259,16 @@ async def get_market_stats(
         sold = []
 
     # Calculate stats
-    active_prices = [_get_fields(l).get("ListPrice", 0) for l in active if _get_fields(l).get("ListPrice")]
-    sold_prices = [_get_fields(l).get("ClosePrice", 0) for l in sold if _get_fields(l).get("ClosePrice")]
+    active_prices = [
+        _get_fields(listing).get("ListPrice", 0)
+        for listing in active
+        if _get_fields(listing).get("ListPrice")
+    ]
+    sold_prices = [
+        _get_fields(listing).get("ClosePrice", 0)
+        for listing in sold
+        if _get_fields(listing).get("ClosePrice")
+    ]
 
     stats = {
         "active_count": len(active),

@@ -31,27 +31,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from realtorai.integrations.docusign import (
     docusign_auth,
-    get_rooms,
-    get_room,
-    get_roles,
-    get_offices,
-    get_room_templates,
+    format_room_summary,
     get_form_libraries,
     get_form_library_forms,
+    get_offices,
+    get_roles,
+    get_room,
     get_room_documents,
-    get_room_users,
     get_room_task_lists,
+    get_room_templates,
+    get_room_users,
+    get_rooms,
     get_task_list_templates,
     get_transaction_sides,
-    format_room_summary,
 )
-from realtorai.config.settings import get_settings
 
 
 async def check_status():
     """Check DocuSign connection status."""
-    settings = get_settings()
-
     print("DocuSign Rooms Status")
     print("-" * 40)
 

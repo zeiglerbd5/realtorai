@@ -7,18 +7,19 @@ Test the local LLM inference engine with sample prompts.
 
 import asyncio
 import json
-import time
-from pathlib import Path
 
 # Add parent to path for imports
 import sys
+import time
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 async def test_basic_generation():
     """Test basic text generation."""
-    from realtorai.inference.engine import InferenceEngine
     from realtorai.config.settings import get_settings
+    from realtorai.inference.engine import InferenceEngine
 
     settings = get_settings()
     engine = InferenceEngine(settings)
@@ -43,8 +44,8 @@ async def test_basic_generation():
 
 async def test_streaming_generation():
     """Test streaming text generation."""
-    from realtorai.inference.engine import InferenceEngine
     from realtorai.config.settings import get_settings
+    from realtorai.inference.engine import InferenceEngine
 
     settings = get_settings()
     engine = InferenceEngine(settings)
@@ -70,9 +71,9 @@ async def test_streaming_generation():
 
 async def test_structured_output():
     """Test structured JSON output."""
+    from realtorai.config.settings import get_settings
     from realtorai.inference.engine import InferenceEngine
     from realtorai.schemas.email import EmailClassification
-    from realtorai.config.settings import get_settings
 
     settings = get_settings()
     engine = InferenceEngine(settings)
@@ -104,7 +105,7 @@ async def test_structured_output():
     elapsed = time.time() - start
 
     if result:
-        print(f"Classification:")
+        print("Classification:")
         print(f"  Priority: {result.priority}")
         print(f"  Intent: {result.intent}")
         print(f"  Requires Response: {result.requires_response}")
@@ -120,10 +121,10 @@ async def test_structured_output():
 
 async def test_email_draft():
     """Test email draft generation."""
+    from realtorai.config.settings import get_settings
     from realtorai.inference.engine import InferenceEngine
     from realtorai.inference.prompts import build_email_draft_prompt
     from realtorai.schemas.email import DraftResponse
-    from realtorai.config.settings import get_settings
 
     settings = get_settings()
     engine = InferenceEngine(settings)
@@ -136,7 +137,8 @@ async def test_email_draft():
         "sender_name": "Sarah Johnson",
         "sender_email": "sarah@example.com",
         "subject": "Interested in 123 Main St listing",
-        "body": "I saw your listing and I'm very interested. Could we schedule a showing this weekend?",
+        "body": "I saw your listing and I'm very interested. "
+        "Could we schedule a showing this weekend?",
     }
 
     print(f"Original email from: {email_data['sender_name']}")
@@ -154,7 +156,7 @@ async def test_email_draft():
     elapsed = time.time() - start
 
     if result:
-        print(f"Draft Response:")
+        print("Draft Response:")
         print(f"  Subject: {result.subject}")
         print(f"  Body:\n{result.body}")
     else:
@@ -167,9 +169,9 @@ async def test_email_draft():
 
 async def test_tool_calling():
     """Test tool calling capability."""
+    from realtorai.config.settings import get_settings
     from realtorai.inference.engine import InferenceEngine
     from realtorai.inference.tools import EMAIL_TOOLS
-    from realtorai.config.settings import get_settings
 
     settings = get_settings()
     engine = InferenceEngine(settings)
@@ -178,7 +180,9 @@ async def test_tool_calling():
     print("Test 5: Tool Calling")
     print("=" * 60)
 
-    prompt = "Send an email to sarah@example.com confirming a showing at 123 Main St tomorrow at 2pm."
+    prompt = (
+        "Send an email to sarah@example.com confirming a showing at 123 Main St tomorrow at 2pm."
+    )
 
     print(f"Prompt: {prompt}\n")
 
@@ -187,7 +191,7 @@ async def test_tool_calling():
     elapsed = time.time() - start
 
     if tool_call:
-        print(f"Tool Call:")
+        print("Tool Call:")
         print(f"  Name: {tool_call.get('name')}")
         print(f"  Arguments: {json.dumps(tool_call.get('arguments', {}), indent=2)}")
     else:

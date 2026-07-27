@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import httpx
 import structlog
 
-from realtorai.rag.config import get_chunk_size, get_chunk_overlap
+from realtorai.rag.config import get_chunk_overlap, get_chunk_size
 from realtorai.rag.section_aware import detect_section_style, split_by_sections
 from realtorai.rag.store import get_vector_store
 

@@ -3,6 +3,7 @@
 import asyncio
 import time
 
+
 async def main():
     print("Loading engine...")
     start = time.time()

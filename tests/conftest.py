@@ -4,8 +4,9 @@ Pytest configuration and fixtures for RealtorAI tests.
 
 import asyncio
 import tempfile
+from collections.abc import Generator
+from datetime import UTC
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
@@ -120,7 +121,7 @@ def sample_email_data() -> dict:
 @pytest.fixture
 def sample_task_data() -> dict:
     """Sample task data for testing."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return {
         "id": "task-123",
@@ -138,5 +139,5 @@ def sample_task_data() -> dict:
                 "to": "sarah@example.com",
             }
         },
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
     }

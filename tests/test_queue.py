@@ -7,7 +7,6 @@ as the system matures.
 """
 
 import pytest
-import pytest_asyncio
 
 
 @pytest.mark.asyncio

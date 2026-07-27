@@ -204,8 +204,6 @@ async def create_saved_search(
     Returns:
         Dict with search ID and details
     """
-    client = get_spark_client()
-
     search_name = f"RealtorAI: {criteria.client_name}"
     filter_string = criteria.to_sparkql()
 
@@ -217,8 +215,9 @@ async def create_saved_search(
 
     try:
         # Build request - Spark API uses {"D": {...}} wrapper
-        from realtorai.integrations.spark.auth import spark_auth, SPARK_API_BASE
         import httpx
+
+        from realtorai.integrations.spark.auth import SPARK_API_BASE, spark_auth
 
         token = await spark_auth.get_access_token()
         if not token:
@@ -294,8 +293,9 @@ async def delete_saved_search(search_id: str) -> bool:
     Returns:
         True if deleted successfully
     """
-    from realtorai.integrations.spark.auth import spark_auth, SPARK_API_BASE
     import httpx
+
+    from realtorai.integrations.spark.auth import SPARK_API_BASE, spark_auth
 
     try:
         token = await spark_auth.get_access_token()

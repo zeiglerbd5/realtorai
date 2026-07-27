@@ -230,7 +230,8 @@ TASK_LIST_TEMPLATES: list[dict[str, Any]] = [
         "name": "Under Contract — Listing Side",
         "taskCount": 17,
         "tasks": [
-            "Review all docs for errors (initials, signatures, effective date, deed ref) — CC agent",
+            "Review all docs for errors (initials, signatures, effective date, deed ref) "
+            "— CC agent",
             "Ask agent: Pending or Active Under Contract; set MLS status",
             "Send under-contract email to seller (Template Seller #1)",
             "Complete DTR Under-Contract task: transaction worksheet + docs + change-request form",

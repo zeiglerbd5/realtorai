@@ -7,9 +7,12 @@ complete property disclosures).
 
 Step semantics:
   - DONE / SKIPPED steps are not re-run on resume.
-  - WAITING marks a step blocked on an external party but does NOT halt the
+  - WAITING marks a step held up by an external party but does NOT halt the
     run — later steps continue (the TC pulls tax maps while the client fills
     out disclosures). WAITING steps re-run on resume so they can clear.
+  - BLOCKED halts the run — nothing downstream executes (e.g. verification
+    found critical issues; filing forms or drafting the MLS listing on bad
+    data must not happen). The blocked step re-runs on resume.
   - FAILED halts the run; the failed step re-runs on resume.
 """
 
@@ -40,6 +43,7 @@ class StepStatus(str, Enum):
     RUNNING = "running"
     DONE = "done"
     WAITING = "waiting"
+    BLOCKED = "blocked"
     SKIPPED = "skipped"
     FAILED = "failed"
 
@@ -47,7 +51,9 @@ class StepStatus(str, Enum):
 class StepResult(BaseModel):
     """What a step function returns."""
 
-    status: Literal[StepStatus.DONE, StepStatus.WAITING, StepStatus.SKIPPED] = StepStatus.DONE
+    status: Literal[
+        StepStatus.DONE, StepStatus.WAITING, StepStatus.BLOCKED, StepStatus.SKIPPED
+    ] = StepStatus.DONE
     detail: str | None = None
 
 
@@ -62,7 +68,7 @@ class StepState(BaseModel):
 
 class WorkflowState(BaseModel):
     name: str
-    status: Literal["running", "waiting", "done", "failed"] = "running"
+    status: Literal["running", "waiting", "blocked", "done", "failed"] = "running"
     steps: list[StepState] = Field(default_factory=list)
     started_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
@@ -174,9 +180,13 @@ async def run_workflow(
             status=result.status.value,
             detail=result.detail,
         )
+        if result.status == StepStatus.BLOCKED:
+            break
 
     if failed:
         state.status = "failed"
+    elif any(s.status == StepStatus.BLOCKED for s in state.steps):
+        state.status = "blocked"
     elif any(s.status == StepStatus.WAITING for s in state.steps):
         state.status = "waiting"
     else:

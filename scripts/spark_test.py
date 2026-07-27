@@ -20,26 +20,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from realtorai.integrations.spark import (
-    spark_auth,
-    search_listings,
-    get_listing,
-    find_comps,
-    get_market_stats,
-    format_listing_summary,
-    # New submission features
-    validate_feeder_for_submission,
-    feeder_to_spark_payload,
-    get_mls_feeder,
     # New buyer alert features
     BuyerCriteria,
+    feeder_to_spark_payload,
+    format_listing_summary,
+    get_market_stats,
+    get_mls_feeder,
+    search_listings,
+    spark_auth,
+    # New submission features
+    validate_feeder_for_submission,
 )
-from realtorai.config.settings import get_settings
 
 
 async def check_status():
     """Check Spark API connection status."""
-    settings = get_settings()
-
     print("Spark API Status")
     print("-" * 40)
 

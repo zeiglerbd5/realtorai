@@ -50,7 +50,8 @@ async def get_queue_count() -> HTMLResponse:
     badge_content = str(count) if count > 0 else ''
     return HTMLResponse(
         content=f'<span id="queue-badge" hx-get="/queue/count" '
-                f'hx-trigger="load, every 30s" hx-swap="outerHTML"{badge_class}>{badge_content}</span>'
+                f'hx-trigger="load, every 30s" hx-swap="outerHTML"'
+                f'{badge_class}>{badge_content}</span>'
     )
 
 

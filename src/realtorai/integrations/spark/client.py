@@ -47,7 +47,9 @@ class SparkClient:
         response.raise_for_status()
 
         data = response.json()
-        logger.debug("spark_api_get", endpoint=endpoint, results=len(data.get("D", {}).get("Results", [])))
+        logger.debug(
+            "spark_api_get", endpoint=endpoint, results=len(data.get("D", {}).get("Results", []))
+        )
         return data
 
     async def close(self):

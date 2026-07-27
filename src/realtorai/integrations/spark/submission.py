@@ -13,24 +13,27 @@ API Reference: https://sparkplatform.com/docs/api_services/listings
 import asyncio
 import mimetypes
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import structlog
 
 from realtorai.config.settings import get_settings
-from realtorai.integrations.spark.client import get_spark_client, SPARK_API_BASE
 from realtorai.integrations.spark.auth import spark_auth
+from realtorai.integrations.spark.client import SPARK_API_BASE, get_spark_client
 from realtorai.integrations.spark.mls_feeder import (
+    get_feeder_completeness,
     get_mls_feeder,
     set_feeder_status,
-    get_feeder_completeness,
 )
 
 
 def _mock_backend() -> bool:
     """True when MLS submission should hit the local simulator."""
     return get_settings().mls_backend == "mock"
+
+if TYPE_CHECKING:
+    from realtorai.schemas.transaction import TransactionRecord
 
 logger = structlog.get_logger()
 
@@ -235,33 +238,56 @@ async def get_listing_rules(property_type: str) -> dict[str, Any]:
         return {"property_type": property_type, "rules": []}
 
 
+DRAFT_FLOOR_FIELDS = {
+    # The bare minimum for a draft API call to be meaningful. Everything
+    # else is allowed to be TBD on a draft — publish-readiness is judged
+    # by the 49-field model (schemas/mls_required), not this floor.
+    "address.street_name": lambda f: f.get("address", {}).get("street_name"),
+    "address.city": lambda f: f.get("address", {}).get("city"),
+    "property.type": lambda f: f.get("property", {}).get("type"),
+    "listing.price": lambda f: f.get("listing", {}).get("price"),
+}
+
+
 async def create_draft_listing(
     client_id: int,
     name: str,
+    record: "TransactionRecord | None" = None,
 ) -> dict[str, Any]:
     """Create a draft listing in FlexMLS from the MLS feeder.
 
-    The listing is created as a DRAFT - agent must review and publish
-    in the FlexMLS interface.
-
-    Args:
-        client_id: Client database ID
-        name: Client name
-
-    Returns:
-        Dict with listing_id and listing_key on success
+    The listing is created as a DRAFT — the agent reviews and publishes in
+    the FlexMLS interface. Drafts are allowed to be incomplete: creation
+    requires only DRAFT_FLOOR_FIELDS. When the canonical TransactionRecord
+    is supplied, the result carries `publish_ready` / `missing_required`
+    from the 49-field model (schemas/mls_required) — the single source of
+    truth for publish readiness.
 
     Raises:
-        ListingSubmissionError: If validation or API call fails
+        ListingSubmissionError: If the floor validation or API call fails
     """
-    # Validate first
-    is_valid, errors = await validate_feeder_for_submission(client_id, name)
-    if not is_valid:
-        raise ListingSubmissionError("Feeder validation failed", [{"message": e} for e in errors])
-
     feeder = get_mls_feeder(client_id, name)
     if not feeder:
         raise ListingSubmissionError("No MLS feeder found")
+
+    missing_floor = [k for k, get in DRAFT_FLOOR_FIELDS.items() if get(feeder) is None]
+    if missing_floor:
+        raise ListingSubmissionError(
+            "Cannot create a draft without: " + ", ".join(missing_floor),
+            [{"message": f"Missing: {f}"} for f in missing_floor],
+        )
+
+    prop_type = feeder.get("property", {}).get("type")
+    if prop_type and prop_type not in PROPERTY_TYPE_MAP:
+        raise ListingSubmissionError(f"Unknown property type: {prop_type}")
+
+    publish_ready: bool | None = None
+    missing_required: list[str] = []
+    if record is not None:
+        from realtorai.schemas.mls_required import missing_required as _missing
+
+        missing_required = _missing(record)
+        publish_ready = not missing_required
 
     # Convert to Spark format
     payload = feeder_to_spark_payload(feeder)
@@ -283,11 +309,12 @@ async def create_draft_listing(
             status="submitted",
             mls_listing_id=result["listing_id"],
         )
+        if publish_ready is not None:
+            result["publish_ready"] = publish_ready
+            result["missing_required"] = missing_required
         return result
 
     # Make API call
-    client = get_spark_client()
-
     try:
         # Spark API expects {"D": {...}} wrapper
         request_body = {"D": payload}
@@ -325,11 +352,15 @@ async def create_draft_listing(
                     listing_id=listing_id,
                 )
 
-                return {
+                result = {
                     "listing_key": listing_key,
                     "listing_id": listing_id,
                     "status": "draft",
                 }
+                if publish_ready is not None:
+                    result["publish_ready"] = publish_ready
+                    result["missing_required"] = missing_required
+                return result
 
             else:
                 # Extract error details

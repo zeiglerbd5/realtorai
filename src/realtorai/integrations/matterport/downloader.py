@@ -13,12 +13,12 @@ import httpx
 import structlog
 
 from realtorai.config.settings import get_settings
-from realtorai.storage.client_files import slugify
 from realtorai.integrations.matterport.models import (
     get_model,
-    get_model_snapshots,
     get_model_embed_url,
+    get_model_snapshots,
 )
+from realtorai.storage.client_files import slugify
 
 logger = structlog.get_logger()
 

@@ -109,7 +109,7 @@ async def main() -> int:
 
     # 1. Build canonical record
     record = sample_record()
-    print(f"Built sample record:")
+    print("Built sample record:")
     print(f"  property: {record.street_address}, {record.city}, {record.state} {record.zip}")
     print(f"  effective: {record.effective_date}  closing: {record.estimated_closing_date}")
     print(f"  price: ${record.estimated_sale_price}  EMD: ${record.emd_amount}")
@@ -118,7 +118,8 @@ async def main() -> int:
     # 2. Translate to DocuSign payload
     payload = to_room_field_data(record)
     print(f"Mapped to {len(payload)} DocuSign fields. Coverage:")
-    print(f"  scalars in record  : {sum(1 for k in SCALAR_MAP if getattr(record, k, None) is not None)}")
+    n_scalars = sum(1 for k in SCALAR_MAP if getattr(record, k, None) is not None)
+    print(f"  scalars in record  : {n_scalars}")
     print(f"  scalars in payload : {sum(1 for k in payload if not isinstance(payload[k], dict))}")
     print(f"  party objects      : {sum(1 for v in payload.values() if isinstance(v, dict))}\n")
 

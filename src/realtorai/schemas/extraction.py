@@ -76,5 +76,7 @@ class ExtractionProposal(BaseModel):
 
     def get_title(self) -> str:
         """Generate a title for the task."""
-        type_label = "MLS Update" if self.extraction_type == ExtractionType.MLS else "Transaction Update"
+        type_label = (
+            "MLS Update" if self.extraction_type == ExtractionType.MLS else "Transaction Update"
+        )
         return f"{type_label}: {self.client_name}"
