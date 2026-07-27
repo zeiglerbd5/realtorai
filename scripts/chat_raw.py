@@ -2,6 +2,7 @@
 """Interactive CLI chat - raw model only, no RAG (streaming)."""
 from mlx_lm import load, stream_generate
 from mlx_lm.sample_utils import make_sampler
+
 from realtorai.config.settings import get_settings
 
 print("Loading model...")
@@ -32,7 +33,9 @@ while True:
 
     print("\nAssistant: ", end="", flush=True)
 
-    for response in stream_generate(model, tokenizer, prompt=prompt, max_tokens=512, sampler=sampler):
+    for response in stream_generate(
+        model, tokenizer, prompt=prompt, max_tokens=512, sampler=sampler
+    ):
         print(response.text, end="", flush=True)
 
     print("\n")

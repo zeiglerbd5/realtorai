@@ -29,7 +29,7 @@ deed review) and were validated against real inbox traffic.
 git clone https://github.com/zeiglerbd5/realtorai.git && cd realtorai
 pip install -e ".[dev]"          # or: uv sync
 
-pytest                           # 96 tests, fully offline, ~1 second
+pytest                           # 99 tests, fully offline, ~1 second
 python scripts/demo_listing_workflow.py --fresh   # full intake on the reference listing
 realtorai-web                    # → http://127.0.0.1:8421
 ```
@@ -58,6 +58,8 @@ Classify intake (listing vs. buyer)          Claude Sonnet
 Extract Master Information Document          Claude Sonnet → TransactionRecord
     ↓
 Verify extraction against source docs        Claude Opus (second-model audit)
+    │    critical issues BLOCK the run — no room, no forms, no MLS draft
+    │    on data that failed the audit; re-verifies on resume
     ↓
 Create DocuSign Transaction Room (DTR)       field data auto-synced
     ├─ Add "New Listing" task list           from the team's real checklists
@@ -65,7 +67,8 @@ Create DocuSign Transaction Room (DTR)       field data auto-synced
     ├─ File signed paperwork into the room
     └─ Start property disclosures            waits on client, doesn't block
     ↓
-Create draft MLS listing                     gated by the 49-required-field check
+Create draft MLS listing                     draft carries the 49-required-field
+    │                                        publish-readiness report
     ↓
 Pull tax map (parcel pin) · tax card · FEMA flood map     live, keyless
     ↓
@@ -141,10 +144,12 @@ document, and the agency's fillable PDFs filled field-by-field with pypdf.
 Deterministic fill means a price or deadline can never be hallucinated in
 transit, and re-syncs are free.
 
-The MLS side is gated by `schemas/mls_required.py` — the 49 fields Maine
-Listings requires, exactly, asserted by test. The readiness check
-("44/49 ready; missing: …") feeds the master document, the workflow status,
-and the copilot's answers.
+Publish readiness is judged by `schemas/mls_required.py` — the 49 fields
+Maine Listings requires, exactly, asserted by test, and the single source
+of truth for MLS validation. A draft is allowed to be incomplete (that's
+what drafts are for), but it carries its readiness report ("44/49 ready;
+missing: …") into the workflow status, the master document, and the
+copilot's answers — and can't be called publish-ready until 49/49.
 
 ## Automatic model selection
 
@@ -258,8 +263,10 @@ pytest                  # offline suite (mock backends, no keys)
 ruff check .            # lint
 ```
 
-CI runs the suite on every push (`.github/workflows/ci.yml`) — on Linux,
-which works because the offline suite has no Apple-only dependencies.
+CI runs ruff and the suite on every push (`.github/workflows/ci.yml`) —
+on Linux, which works because the offline suite has no Apple-only
+dependencies. The lint gate is clean: zero findings, no suppressions
+beyond one documented convention.
 
 ## Privacy
 

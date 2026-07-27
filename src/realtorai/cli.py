@@ -76,7 +76,9 @@ def main():
 
     rag_query_parser = rag_subparsers.add_parser("query", help="Test RAG retrieval")
     rag_query_parser.add_argument("query_text", help="Query to search for")
-    rag_query_parser.add_argument("-n", "--num-results", type=int, default=5, help="Number of results")
+    rag_query_parser.add_argument(
+        "-n", "--num-results", type=int, default=5, help="Number of results"
+    )
 
     rag_subparsers.add_parser("sources", help="List all ingested sources")
 
@@ -115,8 +117,9 @@ def run_web(args):
 def run_daemon(args):
     """Start the background daemon."""
     import asyncio
-    from realtorai.daemon import RealtorAIDaemon
+
     from realtorai.config.settings import get_settings
+    from realtorai.daemon import RealtorAIDaemon
 
     settings = get_settings()
 

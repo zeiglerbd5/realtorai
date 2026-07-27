@@ -2,13 +2,19 @@
 
 ## Current Status
 
-**Active development paused — pending a working realtor to test against.** The
-software is built out beyond what a single user can drive realistically; the
-next round of changes really wants a domain partner using it day-to-day to
-surface what's missing.
+**Active — embedded with a working listing team.** I now work as the
+transaction coordinator for a Maine listing team, and the project is built
+against that team's real workflow: its checklists drive the mock Rooms task
+lists, its forwarded inbox validated the intake classifier (see
+`scripts/eval_intake_classifier.py`), and its day-to-day TC workload defines
+the feature set. Live DocuSign Rooms / MLS cutover remains blocked on
+broker- and MLS-side API approval — the integrations run on simulators
+built to the live API shapes, so the cutover is two env vars.
 
-Two phases shipped (Email Triage MVP, Knowledge & Style); a third (Transactions
-& Listings) is well along; the rest is parked for now.
+Recent: conversational approval queue (scoping copilot + structural
+go/no-go gate), verification that blocks downstream side effects, 49-field
+MLS publish-readiness as the single validation source, atomic approval
+claims, CI (lint + offline suite).
 
 ---
 

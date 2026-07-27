@@ -6,10 +6,8 @@ Downloads and configures the MLX-optimized Llama 3.2 model for local inference.
 """
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
-
 
 # Model configuration
 # Note: Llama 3.2 only has 1B and 3B text models. For 8B, we use Llama 3.1.
@@ -122,7 +120,7 @@ def create_env_template(model_name: str):
     if not env_path.exists() and env_example.exists():
         import shutil
         shutil.copy(env_example, env_path)
-        print(f"Created .env from .env.example")
+        print("Created .env from .env.example")
 
     # Update model name in .env if it exists
     if env_path.exists():
@@ -134,7 +132,7 @@ def create_env_template(model_name: str):
                     lines[i] = f"MODEL_NAME={model_name}"
                     break
             env_path.write_text("\n".join(lines))
-            print(f"Updated MODEL_NAME in .env")
+            print("Updated MODEL_NAME in .env")
 
 
 def main():

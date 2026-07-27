@@ -70,6 +70,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+# UP042 wants StrEnum; the (str, Enum) idiom is kept deliberately for
+# painless JSON/DB serialization across the schema modules.
+ignore = ["UP042"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

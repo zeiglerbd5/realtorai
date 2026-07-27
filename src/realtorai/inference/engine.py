@@ -1,12 +1,12 @@
 """MLX inference engine wrapper for Llama 3.2."""
 
 import json
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, AsyncIterator, TypeVar
+from typing import Any, TypeVar
 
 import structlog
 from pydantic import BaseModel
-
 
 from realtorai.config.settings import get_settings
 
@@ -195,7 +195,8 @@ class InferenceEngine:
         Returns:
             Validated Pydantic model instance
         """
-        # Build schema-aware system prompt - use simplified field descriptions instead of full JSON schema
+        # Build schema-aware system prompt - use simplified field descriptions
+        # instead of full JSON schema
         fields = []
         schema = output_schema.model_json_schema()
         properties = schema.get("properties", {})

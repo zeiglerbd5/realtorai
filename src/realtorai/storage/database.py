@@ -1,14 +1,13 @@
 """SQLite database for task queue and persistent storage."""
 
 import json
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import AsyncIterator
 
 import aiosqlite
 import structlog
-
 
 from realtorai.config.settings import get_settings
 
@@ -243,6 +242,29 @@ class Database:
                 ),
             )
         logger.info("task_updated", task_id=task_id, status=status)
+
+    async def claim_task(self, task_id: str, approval_action: dict | None = None) -> bool:
+        """Atomically claim a PENDING task for execution.
+
+        Returns True only for the caller that flipped pending -> executing;
+        a concurrent or repeated approval sees False and must not execute.
+        """
+        async with self.transaction() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE tasks
+                SET status = 'executing', approval_action = ?, updated_at = ?
+                WHERE id = ? AND status = 'pending'
+                """,
+                (
+                    json.dumps(approval_action) if approval_action else None,
+                    datetime.now(UTC).replace(tzinfo=None).isoformat(),
+                    task_id,
+                ),
+            )
+            claimed = cursor.rowcount == 1
+        logger.info("task_claim", task_id=task_id, claimed=claimed)
+        return claimed
 
     async def update_task_data(
         self,
@@ -523,18 +545,6 @@ class Database:
         row = await cursor.fetchone()
         return self._row_to_client(row) if row else None
 
-    async def get_client(self, client_id: int) -> dict | None:
-        """Get a client by ID."""
-        if not self._connection:
-            raise RuntimeError("Database not connected")
-
-        cursor = await self._connection.execute(
-            "SELECT * FROM clients WHERE id = ?",
-            (client_id,),
-        )
-        row = await cursor.fetchone()
-        return self._row_to_client(row) if row else None
-
     def _row_to_client(self, row: aiosqlite.Row) -> dict:
         """Convert database row to client dict."""
         return {
@@ -804,7 +814,9 @@ class Database:
             )
         logger.info("lead_converted_to_client", lead_id=lead_id)
 
-    async def add_standard_lead_pending_items(self, lead_id: int, transaction_type: str = "buy") -> None:
+    async def add_standard_lead_pending_items(
+        self, lead_id: int, transaction_type: str = "buy"
+    ) -> None:
         """Add standard pending items for a new lead.
 
         For buyers: Buyer Agency Agreement
@@ -826,7 +838,9 @@ class Database:
             )
         # Could add more standard items here
 
-    async def add_standard_client_pending_items(self, client_id: int, transaction_type: str = "buy") -> None:
+    async def add_standard_client_pending_items(
+        self, client_id: int, transaction_type: str = "buy"
+    ) -> None:
         """Add standard pending items for a new active client (post-agreement).
 
         These are the items needed to proceed with the transaction.

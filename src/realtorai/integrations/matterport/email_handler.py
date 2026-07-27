@@ -166,8 +166,14 @@ async def download_and_extract_zip(
                 )
 
                 # Count files by type
-                images = sum(1 for f in file_list if Path(f).suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp'))
-                models = sum(1 for f in file_list if Path(f).suffix.lower() in ('.obj', '.fbx', '.gltf', '.glb'))
+                images = sum(
+                    1 for f in file_list
+                    if Path(f).suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp')
+                )
+                models = sum(
+                    1 for f in file_list
+                    if Path(f).suffix.lower() in ('.obj', '.fbx', '.gltf', '.glb')
+                )
 
                 # Save download info
                 import json

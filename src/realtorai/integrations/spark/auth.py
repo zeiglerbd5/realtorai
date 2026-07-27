@@ -131,7 +131,8 @@ class SparkAuth(Integration):
 
     def _save_tokens(self, access_token: str, refresh_token: str, expires_in: int) -> None:
         """Save tokens to keychain."""
-        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)  # 5 min buffer
+        # 5 min buffer
+        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)
 
         keychain.set(KeychainKeys.SPARK_ACCESS_TOKEN, access_token)
         keychain.set(KeychainKeys.SPARK_REFRESH_TOKEN, refresh_token)
@@ -212,7 +213,9 @@ class SparkAuth(Integration):
                     logger.info("spark_authenticated")
                     return True
                 else:
-                    logger.error("spark_auth_failed", status=response.status_code, body=response.text)
+                    logger.error(
+                        "spark_auth_failed", status=response.status_code, body=response.text
+                    )
                     return False
 
         except Exception as e:

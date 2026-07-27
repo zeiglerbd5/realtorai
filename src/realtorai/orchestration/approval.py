@@ -21,7 +21,9 @@ class ApprovalLoop:
     async def approve(self, task: Task) -> bool:
         """Approve a task as-is and execute it.
 
-        Returns True if execution succeeded.
+        Returns True if execution succeeded. The task is claimed atomically
+        (pending -> executing) first, so a concurrent or repeated approval
+        cannot execute the same work twice.
         """
         logger.info("task_approved", task_id=task.id, task_type=task.task_type.value)
 
@@ -31,13 +33,10 @@ class ApprovalLoop:
             timestamp=datetime.now(UTC).replace(tzinfo=None),
         )
 
-        # Update database
         db = await get_database()
-        await db.update_task_status(
-            task.id,
-            ApprovalStatus.EXECUTING.value,
-            action.model_dump(mode="json"),
-        )
+        if not await db.claim_task(task.id, action.model_dump(mode="json")):
+            logger.warning("task_already_claimed", task_id=task.id)
+            return False
 
         # Execute the action
         try:
@@ -96,13 +95,10 @@ class ApprovalLoop:
         updated_task = task.model_copy()
         updated_task.proposal_data = {**task.proposal_data, **edited_content}
 
-        # Update database
         db = await get_database()
-        await db.update_task_status(
-            task.id,
-            ApprovalStatus.EXECUTING.value,
-            action.model_dump(mode="json"),
-        )
+        if not await db.claim_task(task.id, action.model_dump(mode="json")):
+            logger.warning("task_already_claimed", task_id=task.id)
+            return False
 
         # Execute with edited content
         try:
@@ -254,10 +250,16 @@ class ApprovalLoop:
                 client_name=item.get("client_name") or proposal.get("client_name"),
             )
 
+            steps = (envelope.workflow or {}).get("steps", [])
             waiting = [
                 s.get("title") or s.get("key") or "?"
-                for s in (envelope.workflow or {}).get("steps", [])
+                for s in steps
                 if s.get("status") == "waiting"
+            ]
+            blocked = [
+                f"{s.get('title') or s.get('key')}: {s.get('detail') or 'blocked'}"
+                for s in steps
+                if s.get("status") == "blocked"
             ]
             ready, total, _ = readiness(envelope.record)
             results.append(
@@ -267,6 +269,7 @@ class ApprovalLoop:
                     "client_name": item.get("client_name"),
                     "workflow_status": (envelope.workflow or {}).get("status"),
                     "waiting_on": waiting,
+                    "blocked_on": blocked,
                     "mls_ready": f"{ready}/{total}" if side == "listing" else None,
                 }
             )
@@ -282,6 +285,8 @@ class ApprovalLoop:
         lines = [f"Done — ran {len(results)} workflow{'s' if len(results) != 1 else ''}:"]
         for r in results:
             bits = [f"{r['side']} — {r['client_name'] or r['slug']}: {r['workflow_status']}"]
+            if r["blocked_on"]:
+                bits.append(f"BLOCKED — {'; '.join(r['blocked_on'])}")
             if r["mls_ready"]:
                 bits.append(f"MLS {r['mls_ready']} required fields ready")
             if r["waiting_on"]:

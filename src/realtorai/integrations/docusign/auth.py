@@ -127,7 +127,8 @@ class DocuSignAuth(Integration):
 
     def _save_tokens(self, access_token: str, refresh_token: str, expires_in: int) -> None:
         """Save tokens to keychain."""
-        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)  # 5 min buffer
+        # 5 min buffer
+        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=expires_in - 300)
 
         keychain.set(KeychainKeys.DOCUSIGN_ACCESS_TOKEN, access_token)
         keychain.set(KeychainKeys.DOCUSIGN_REFRESH_TOKEN, refresh_token)
@@ -216,7 +217,9 @@ class DocuSignAuth(Integration):
                     logger.info("docusign_authenticated")
                     return True
                 else:
-                    logger.error("docusign_auth_failed", status=response.status_code, body=response.text)
+                    logger.error(
+                        "docusign_auth_failed", status=response.status_code, body=response.text
+                    )
                     return False
 
         except Exception as e:
@@ -269,7 +272,9 @@ class DocuSignAuth(Integration):
             "response_type": "code",
             "client_id": self.settings.docusign_integration_key,
             "redirect_uri": REDIRECT_URI,
-            "scope": "signature dtr.rooms.read dtr.rooms.write dtr.documents.read dtr.documents.write dtr.profile.read dtr.profile.write dtr.company.read dtr.company.write room_forms",
+            "scope": "signature dtr.rooms.read dtr.rooms.write dtr.documents.read "
+            "dtr.documents.write dtr.profile.read dtr.profile.write dtr.company.read "
+            "dtr.company.write room_forms",
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         }

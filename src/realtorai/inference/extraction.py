@@ -193,7 +193,8 @@ async def classify_email_content(content: str) -> ExtractionResult:
     - both: Contains both types
     - neither: No extractable structured data
     """
-    classification_prompt = """Analyze this email/document and classify what structured data it contains.
+    classification_prompt = """\
+Analyze this email/document and classify what structured data it contains.
 
 Content:
 {content}
@@ -321,7 +322,7 @@ async def apply_mls_extraction(
         return {"applied": False, "reason": "No extractable fields"}
 
     # Apply to feeder
-    feeder = update_mls_feeder(client_id, name, updates, source=source)
+    update_mls_feeder(client_id, name, updates, source=source)
 
     logger.info(
         "mls_extraction_applied",
@@ -634,7 +635,9 @@ FIELD_TO_PENDING_ITEM_PATTERNS: dict[str, list[str]] = {
     # Contacts
     "contacts.lender": ["lender info", "lender contact", "loan officer", "mortgage"],
     "contacts.title_company": ["title company", "closing attorney", "title agent", "settlement"],
-    "contacts.other_agent": ["agent contact", "other agent", "buyer agent", "seller agent", "listing agent"],
+    "contacts.other_agent": [
+        "agent contact", "other agent", "buyer agent", "seller agent", "listing agent"
+    ],
     "contacts.inspector": ["inspector", "inspection contact"],
     # Financial
     "financial.purchase_price": ["purchase price", "offer amount", "sale price"],
@@ -822,9 +825,13 @@ def compute_mls_diff(
             # Extract snippet supporting this value
             snippet = ""
             if isinstance(proposed_value, str):
-                snippet = _extract_source_snippet(content, {field_path: proposed_value}, max_length=150)
+                snippet = _extract_source_snippet(
+                    content, {field_path: proposed_value}, max_length=150
+                )
             elif isinstance(proposed_value, (int, float)):
-                snippet = _extract_source_snippet(content, {field_path: str(proposed_value)}, max_length=150)
+                snippet = _extract_source_snippet(
+                    content, {field_path: str(proposed_value)}, max_length=150
+                )
 
             changes.append(FieldChange(
                 field_path=field_path,
@@ -882,7 +889,9 @@ def compute_transaction_diff(
         if current_value != proposed_value:
             snippet = ""
             if isinstance(proposed_value, str):
-                snippet = _extract_source_snippet(content, {field_path: proposed_value}, max_length=150)
+                snippet = _extract_source_snippet(
+                    content, {field_path: proposed_value}, max_length=150
+                )
 
             changes.append(FieldChange(
                 field_path=field_path,
@@ -1056,7 +1065,8 @@ Content:
 {content[:4000]}
 
 If you find MLS listing data (property details), use update_mls_feeder.
-If you find transaction data (dates, contacts, milestones), use update_transaction, set_milestone, or mark_document_received as appropriate.
+If you find transaction data (dates, contacts, milestones), use update_transaction, \
+set_milestone, or mark_document_received as appropriate.
 """
 
     result = await engine.call_tool(

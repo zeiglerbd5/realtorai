@@ -9,32 +9,32 @@ import asyncio
 import os
 import signal
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import NoReturn, Optional
+from typing import NoReturn
 
 # Fix imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from realtorai.config.settings import Settings, get_settings
+from realtorai.orchestration.feedback import FeedbackLogger
+from realtorai.orchestration.queue import TaskQueue
 from realtorai.storage.database import Database
 from realtorai.storage.keychain import get_graph_tokens
-from realtorai.orchestration.queue import TaskQueue
-from realtorai.orchestration.feedback import FeedbackLogger
 
 
 class RealtorAIDaemon:
     """Background daemon for email polling and processing."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
         self.running = False
         self._shutdown_event = asyncio.Event()
 
         # Components initialized on start
-        self.db: Optional[Database] = None
-        self.queue: Optional[TaskQueue] = None
-        self.feedback_logger: Optional[FeedbackLogger] = None
+        self.db: Database | None = None
+        self.queue: TaskQueue | None = None
+        self.feedback_logger: FeedbackLogger | None = None
 
     async def initialize(self) -> None:
         """Initialize all components."""
@@ -137,7 +137,11 @@ class RealtorAIDaemon:
                         sender_name=formatted["from_name"],
                         subject=formatted["subject"],
                         classification=proposal.classification.model_dump(),
-                        draft_response=proposal.draft_response.model_dump() if proposal.draft_response else None,
+                        draft_response=(
+                            proposal.draft_response.model_dump()
+                            if proposal.draft_response
+                            else None
+                        ),
                         reasoning_summary=proposal.reasoning.conclusion,
                         confidence=proposal.classification.confidence.value,
                     )
@@ -175,7 +179,7 @@ class RealtorAIDaemon:
         print("Press Ctrl+C to stop\n")
 
         while self.running:
-            cycle_start = datetime.now(timezone.utc)
+            cycle_start = datetime.now(UTC)
             print(f"[{cycle_start.strftime('%H:%M:%S')}] Polling cycle started")
 
             try:
@@ -184,7 +188,7 @@ class RealtorAIDaemon:
             except Exception as e:
                 print(f"  Error in poll cycle: {e}")
 
-            print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Cycle complete")
+            print(f"[{datetime.now(UTC).strftime('%H:%M:%S')}] Cycle complete")
 
             # Wait for next cycle or shutdown
             try:
@@ -192,13 +196,13 @@ class RealtorAIDaemon:
                     self._shutdown_event.wait(),
                     timeout=self.settings.daemon_poll_interval,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # Normal timeout, continue loop
 
         await self.shutdown()
 
 
-def run_daemon(foreground: bool = False, poll_interval: Optional[int] = None) -> NoReturn:
+def run_daemon(foreground: bool = False, poll_interval: int | None = None) -> NoReturn:
     """Run the daemon process."""
     settings = get_settings()
 

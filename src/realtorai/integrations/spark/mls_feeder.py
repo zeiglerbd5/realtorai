@@ -378,7 +378,9 @@ def format_feeder_summary(feeder: dict[str, Any]) -> str:
         f"Type: {prop.get('type') or 'Not set'}",
         f"Price: ${listing.get('price'):,}" if listing.get('price') else "Price: Not set",
         f"Beds/Baths: {prop.get('bedrooms') or '?'} bed / {prop.get('bathrooms_full') or '?'} bath",
-        f"Sqft: {prop.get('living_area_sqft'):,}" if prop.get('living_area_sqft') else "Sqft: Not set",
+        f"Sqft: {prop.get('living_area_sqft'):,}"
+        if prop.get('living_area_sqft')
+        else "Sqft: Not set",
         "",
         f"Photos: {media.get('photo_count', 0)}",
         f"Virtual Tour: {'Yes' if media.get('matterport_embed_url') else 'No'}",

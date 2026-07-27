@@ -60,7 +60,8 @@ async def get_emails(
         params: dict[str, Any] = {
             "$top": limit,
             "$orderby": "receivedDateTime desc",
-            "$select": "id,conversationId,subject,from,toRecipients,receivedDateTime,isRead,bodyPreview,body,hasAttachments",
+            "$select": "id,conversationId,subject,from,toRecipients,receivedDateTime,"
+            "isRead,bodyPreview,body,hasAttachments",
         }
         if filter_query:
             params["$filter"] = filter_query
@@ -260,7 +261,9 @@ def strip_quoted_text(body: str, content_type: str = "text") -> str:
         # Remove Gmail quote blocks
         body = re.sub(r'<div class="gmail_quote">.*', '', body, flags=re.DOTALL | re.IGNORECASE)
         # Remove Outlook quote blocks
-        body = re.sub(r'<blockquote[^>]*>.*?</blockquote>', '', body, flags=re.DOTALL | re.IGNORECASE)
+        body = re.sub(
+            r'<blockquote[^>]*>.*?</blockquote>', '', body, flags=re.DOTALL | re.IGNORECASE
+        )
         # Remove dividers and everything after
         body = re.sub(r'<hr[^>]*>.*', '', body, flags=re.DOTALL | re.IGNORECASE)
         # Strip HTML tags for cleaner text

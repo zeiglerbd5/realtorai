@@ -3,8 +3,8 @@
 from typing import Any
 
 import chromadb
-from chromadb.config import Settings
 import structlog
+from chromadb.config import Settings
 
 from realtorai.config.settings import get_settings
 from realtorai.rag.config import get_embedding_model

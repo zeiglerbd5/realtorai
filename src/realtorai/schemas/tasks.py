@@ -51,7 +51,9 @@ class ApprovalAction(BaseModel):
     agent_notes: Annotated[
         str | None, Field(default=None, description="Optional notes from agent")
     ]
-    timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))]
+    timestamp: Annotated[
+        datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    ]
 
 
 class Task(BaseModel):
@@ -60,7 +62,9 @@ class Task(BaseModel):
     # Identity
     id: Annotated[str, Field(description="Unique task ID")]
     task_type: Annotated[TaskType, Field(description="Type of task")]
-    created_at: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))]
+    created_at: Annotated[
+        datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    ]
 
     # Status
     status: Annotated[ApprovalStatus, Field(default=ApprovalStatus.PENDING)]
@@ -108,7 +112,9 @@ class FeedbackRecord(BaseModel):
     # Task reference
     task_id: Annotated[str, Field(description="Original task ID")]
     task_type: Annotated[TaskType, Field(description="Type of task")]
-    timestamp: Annotated[datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))]
+    timestamp: Annotated[
+        datetime, Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    ]
 
     # What the model produced
     original_proposal: Annotated[dict[str, Any], Field(description="Original model output")]

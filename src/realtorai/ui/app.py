@@ -1,8 +1,8 @@
 """FastAPI web application for RealtorAI dashboard."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 import structlog
 import uvicorn
@@ -12,7 +12,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from realtorai.config.settings import get_settings
-
 from realtorai.storage.database import get_database
 from realtorai.ui.routes import actions, chat, clients, pending, queue, transactions
 
