@@ -202,8 +202,13 @@ def get_email_draft_prompt_with_rag(
     sender_role: str | None = None,
     thread_summary: str | None = None,
     n_results: int = 3,
+    context_override: str | None = None,
 ) -> tuple[str, str]:
     """Get email draft prompt with RAG context for the email content.
+
+    When `context_override` is given (the Claude path plans its own targeted
+    retrieval queries), it is used verbatim instead of the default
+    body-as-query retrieval.
 
     Args:
         email_body: The original email body to respond to
@@ -218,8 +223,11 @@ def get_email_draft_prompt_with_rag(
     # Get base draft prompt
     prompt = get_email_draft_prompt(sender_name, sender_role, thread_summary)
 
-    # Get knowledge context relevant to the email content
-    context = retrieve_context(email_body, n_results=n_results)
+    # Knowledge context: planned retrieval when supplied, else body-as-query
+    if context_override is not None:
+        context = context_override
+    else:
+        context = retrieve_context(email_body, n_results=n_results)
 
     if context:
         prompt += f"""

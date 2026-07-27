@@ -61,6 +61,25 @@ _READ_TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "search_knowledge_base",
+        "description": "Semantic search over the ingested knowledge base: Maine "
+        "license law (Title 32 Ch. 114), Real Estate Commission rules, the NAR "
+        "Code of Ethics, the team's policies manual, and email templates. Hits "
+        "carry [source — section] citations; cite them in answers.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "kind": {
+                    "type": "string",
+                    "enum": ["legal", "templates", "policies"],
+                    "description": "Optionally restrict to one source kind",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
         "name": "search_playbook",
         "description": "Search the team's policies & procedures manual and email "
         "templates for how the office handles something.",
@@ -254,11 +273,17 @@ def _read_tool_impls() -> dict[str, Any]:
                     break
         return "\n---\n".join(hits) if hits else "No playbook matches."
 
+    def search_knowledge_base(query: str, kind: str | None = None) -> str:
+        from realtorai.rag.retrieval import search_knowledge
+
+        return search_knowledge(query, kind=kind)
+
     return {
         "list_active_transactions": list_active_transactions,
         "transaction_status": transaction_status,
         "mls_readiness": mls_readiness_tool,
         "search_playbook": search_playbook,
+        "search_knowledge_base": search_knowledge_base,
     }
 
 

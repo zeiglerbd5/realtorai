@@ -1,8 +1,9 @@
 """Email agent for triage and response drafting."""
 
-from typing import Any
+from typing import Any, Literal
 
 import structlog
+from pydantic import BaseModel, Field
 
 from realtorai.agents.base import Agent
 from realtorai.inference.extraction import create_extraction_proposals
@@ -19,6 +20,70 @@ from realtorai.schemas.email import DraftResponse, EmailClassification, EmailInt
 from realtorai.storage.database import get_database
 
 logger = structlog.get_logger()
+
+
+class KnowledgeQuery(BaseModel):
+    """One targeted knowledge-base search the reply should draw on."""
+
+    query: str
+    kind: Literal["legal", "templates", "policies"] | None = Field(
+        default=None, description="Restrict to one source kind, or search all"
+    )
+
+
+class RetrievalPlan(BaseModel):
+    """What the reply needs from the knowledge base (0-3 searches)."""
+
+    queries: list[KnowledgeQuery] = Field(default_factory=list)
+
+
+RETRIEVAL_PLAN_SYSTEM = """You plan knowledge retrieval for a Maine real-estate \
+email assistant drafting a reply. Read the inbound email and decide what the \
+REPLY needs from the knowledge base — not what the email mentions. Choose 0-3 \
+targeted queries: kind "legal" for Maine license law / Commission rules / NAR \
+ethics, "templates" for the team's email templates (e.g. the inspection- \
+scheduling or disclosure-request template), "policies" for office procedure. \
+Return an empty list when the reply needs no reference material."""
+
+
+async def _plan_and_retrieve(email_body: str) -> str | None:
+    """Claude-planned retrieval: formulate targeted queries, then search.
+
+    Returns formatted knowledge context, or None to fall back to the
+    default body-as-query retrieval (offline mode or on any failure).
+    """
+    from realtorai.inference.claude_engine import get_claude_engine
+    from realtorai.inference.model_router import LLMTask
+
+    claude = get_claude_engine()
+    if not claude.available:
+        return None
+    try:
+        plan = await claude.generate_structured(
+            f"Inbound email:\n{email_body}\n\nWhat should the reply draw on?",
+            RetrievalPlan,
+            task=LLMTask.CLASSIFY,
+            system_prompt=RETRIEVAL_PLAN_SYSTEM,
+            max_tokens=3000,
+        )
+        if not plan.queries:
+            return ""  # deliberate: reply needs no reference material
+        from realtorai.rag.retrieval import search_knowledge
+
+        parts = []
+        for q in plan.queries[:3]:
+            hit = search_knowledge(q.query, kind=q.kind, n_results=2)
+            if hit and not hit.startswith("No knowledge"):
+                parts.append(hit)
+        logger.info(
+            "retrieval_planned",
+            queries=[q.query for q in plan.queries[:3]],
+            hits=len(parts),
+        )
+        return "\n---\n".join(parts)
+    except Exception as e:
+        logger.warning("retrieval_plan_failed", error=str(e))
+        return None
 
 
 # Documents that gate providing real estate services (Maine requirement)
@@ -136,13 +201,15 @@ Classify this email according to the schema."""
         """
         formatted = format_email_for_display(email)
 
-        # Get RAG-augmented draft prompt with knowledge context
-        # The email body is used to retrieve relevant knowledge
+        # Knowledge context: Claude plans targeted searches (what the REPLY
+        # needs); offline falls back to body-as-query retrieval.
+        planned_context = await _plan_and_retrieve(formatted["body"][:1500])
         draft_prompt, rag_context = get_email_draft_prompt_with_rag(
             email_body=formatted["body"][:1000],
             sender_name=formatted["from_name"],
             sender_role=classification.sender.role,
             thread_summary=thread_context,
+            context_override=planned_context,
         )
 
         # Check for gating documents

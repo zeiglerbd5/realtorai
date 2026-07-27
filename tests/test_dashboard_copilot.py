@@ -26,9 +26,17 @@ def test_no_execution_tools_exist() -> None:
         "transaction_status",
         "mls_readiness",
         "search_playbook",
+        "search_knowledge_base",
         "list_pending_tasks",
     }
     assert mutating == {"propose_workflow"}
+
+
+def test_knowledge_search_available_in_both_modes() -> None:
+    from realtorai.orchestration.copilot import TASK_TOOL_SCHEMAS
+
+    for schemas in (TASK_TOOL_SCHEMAS, DASHBOARD_TOOL_SCHEMAS):
+        assert "search_knowledge_base" in {t["name"] for t in schemas}
 
 
 @pytest.mark.asyncio

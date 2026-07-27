@@ -86,7 +86,8 @@ Every agent demo claims "human in the loop." Here it is enforced by what the
 model physically cannot call:
 
 - The copilot on each queue task has **read tools** (transaction status, MLS
-  readiness, playbook search, intake documents) and **scoping tools**
+  readiness, playbook search, knowledge-base search with statute citations,
+  intake documents) and **scoping tools**
   (`plan_workflow` queues work on the task; `attach_local_file` adds
   paperwork). **Execution tools do not exist.**
 - Execution fires only on an explicit operator go — matched by a regex in
@@ -249,7 +250,8 @@ src/realtorai/
 │                    # graph/ (Outlook), fema_flood, maine_parcels,
 │                    # vgsi_tax_card, registry/ (county deeds)
 ├── orchestration/   # queue, approval loop, copilot agent, conversation gate
-├── rag/             # ChromaDB knowledge base
+├── rag/             # ChromaDB knowledge base (statutes, rules, NAR ethics,
+│                    # playbook; section-aware chunks -> citeable legal answers)
 ├── schemas/         # TransactionRecord, MLS 49-field gate, tasks
 ├── storage/         # SQLite (aiosqlite), transaction envelopes, Keychain
 ├── workflows/       # engine, listing/buyer intake, enrichment, email trigger
