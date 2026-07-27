@@ -278,6 +278,8 @@ TASK_LIST_TEMPLATES: list[dict[str, Any]] = [
         ],
     },
     {
+        # Applied on the buyer side when the agency holds the deposit
+        # (listing-side deals track the other agency's EMD proof instead).
         "taskListTemplateId": 5,
         "name": "Earnest Money Deposit",
         "taskCount": 4,
@@ -286,6 +288,30 @@ TASK_LIST_TEMPLATES: list[dict[str, Any]] = [
             "Deposit per office procedure",
             "Send proof of delivery to lender, lead agent, and other agent",
             "Track release / disbursement at closing",
+        ],
+    },
+    {
+        # Mirrors the real room's Closing phase: settlement statement,
+        # commission check, and the Transaction Worksheet re-filed at close.
+        "taskListTemplateId": 6,
+        "name": "Closing",
+        "taskCount": 10,
+        "tasks": [
+            "Settlement statement received ~3 days prior — team review "
+            "(everything negotiated + all commissions), copy to client",
+            "Confirm clear-to-close; schedule closing "
+            "(in-person / remote-notarized / POA)",
+            "Send closing procedure email (photo ID; funds by check or wire; "
+            "client calls the closing company directly)",
+            "Utilities & fuel email — closing day is a seller day; fuel "
+            "proration form to the closing company ~4 days prior",
+            "Schedule final walkthrough ≤24 hrs before closing; condition "
+            "email (broom clean, affixed fixtures stay)",
+            "Update Transaction Worksheet; file to the Closing folder",
+            "File signed closing statement; mail copy to the client post-close",
+            "Record commission check; deliver to office",
+            "Lock box pickup; update the Room",
+            "Homestead exemption info (buyer); closing gift",
         ],
     },
 ]

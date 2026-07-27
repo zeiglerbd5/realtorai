@@ -1,0 +1,149 @@
+# Field utilization across the workflow's paperwork and online forms
+
+Every destination one captured fact flows into. Counts = separate
+manual entries the deterministic fill replaces.
+
+| Key | Destination |
+|---|---|
+| ROOM | DocuSign room field data (auto-syncs into Rooms) |
+| ERTS | Exclusive Right to Sell (listing agreement) |
+| BRF | Brokerage Relationship Form (MREC #3) |
+| REBG | Real Estate Brokerage Guide/disclosure |
+| EBRA | Exclusive Buyer Representation Agreement |
+| P&S | Purchase & Sale Agreement (under contract) |
+| SPD | Seller Property Disclosure |
+| LEAD | Lead Paint Disclosure (pre-1978) |
+| ADDM | Multi-offer addendum |
+| MLS | MLS feeder -> Spark draft payload |
+| MID | Master Information Document (internal) |
+| MIS | Master Information Sheet PDF (agency) |
+| TW | Transaction Worksheet PDF (under contract) |
+
+| Uses | Field | MLS-required | Destinations |
+|---:|---|:---:|---|
+| 10 | `city` | yes | ADDM, ERTS, LEAD, MID, MIS, MLS, P&S, ROOM, SPD, TW |
+| 10 | `state` | yes | ADDM, ERTS, LEAD, MID, MIS, MLS, P&S, ROOM, SPD, TW |
+| 10 | `street_address` | yes | ADDM, ERTS, LEAD, MID, MIS, MLS, P&S, ROOM, SPD, TW |
+| 10 | `zip` | yes | ADDM, ERTS, LEAD, MID, MIS, MLS, P&S, ROOM, SPD, TW |
+| 7 | `effective_date` | yes | ERTS, MID, MIS, MLS, P&S, ROOM, TW |
+| 7 | `estimated_sale_price` | yes | ERTS, MID, MIS, MLS, P&S, ROOM, TW |
+| 7 | `sellers[] (name/phone/email/addr)` |  | ADDM, BRF, ERTS, LEAD, P&S, ROOM, SPD |
+| 6 | `buyers[] (name/phone/email/addr)` |  | ADDM, BRF, EBRA, MID, P&S, ROOM |
+| 6 | `year_built` | yes | LEAD, MID, MIS, MLS, ROOM, SPD |
+| 5 | `county` | yes | ERTS, MID, MIS, MLS, ROOM |
+| 4 | `annual_tax_amount` | yes | MID, MIS, MLS, ROOM |
+| 4 | `bedrooms` | yes | MID, MIS, MLS, ROOM |
+| 4 | `buyer_side_commission_pct` |  | EBRA, MID, ROOM, TW |
+| 4 | `estimated_closing_date` |  | MID, P&S, ROOM, TW |
+| 4 | `financing_type` |  | MID, P&S, ROOM, TW |
+| 4 | `garage_spaces` |  | MID, MIS, MLS, ROOM |
+| 4 | `legal_description` |  | ERTS, MID, MIS, ROOM |
+| 4 | `list_side_commission_pct` |  | ERTS, MID, ROOM, TW |
+| 4 | `lot_size_acres` | yes | MID, MIS, MLS, ROOM |
+| 4 | `parcel_id` | yes | ERTS, MID, MIS, ROOM |
+| 4 | `transaction_type` |  | MID, MIS, MLS, TW |
+| 3 | `(room-only: buyerAgent1)` |  | BRF, EBRA, P&S |
+| 3 | `(room-only: listingAgent1)` |  | BRF, ERTS, P&S |
+| 3 | `assessed_value` |  | MID, MIS, ROOM |
+| 3 | `closing_date` |  | MID, ROOM, TW |
+| 3 | `comments` |  | MID, MLS, ROOM |
+| 3 | `emd_amount` |  | MID, P&S, ROOM |
+| 3 | `entity_holding_emd` |  | MID, P&S, ROOM |
+| 3 | `final_sale_price` |  | MID, ROOM, TW |
+| 3 | `financing_commitment_deadline` |  | MID, P&S, ROOM |
+| 3 | `fireplaces_total` | yes | MID, MIS, MLS |
+| 3 | `garage` | yes | MID, MIS, MLS |
+| 3 | `inspection_deadline` |  | MID, P&S, ROOM |
+| 3 | `listing_agent_1` |  | MID, MIS, TW |
+| 3 | `listing_expiration_date` | yes | MID, MIS, MLS |
+| 3 | `listing_status` | yes | MID, MIS, MLS |
+| 3 | `mls_number` |  | MIS, ROOM, TW |
+| 3 | `mortgage_provider` |  | MID, ROOM, TW |
+| 3 | `rooms_total` | yes | MID, MIS, MLS |
+| 3 | `school_district` |  | MID, MIS, ROOM |
+| 3 | `seller_1` |  | MID, MIS, TW |
+| 3 | `seller_2` |  | MID, MIS, TW |
+| 3 | `sewer` |  | MID, MIS, MLS |
+| 3 | `square_footage` | yes | MID, MIS, MLS |
+| 3 | `tax_year` | yes | MID, MIS, MLS |
+| 3 | `title_provider` |  | MID, ROOM, TW |
+| 3 | `water_source` |  | MID, MIS, MLS |
+| 3 | `zoning` | yes | MID, MIS, ROOM |
+| 2 | `acreage_source` | yes | MID, MIS |
+| 2 | `appraisal_deadline` |  | MID, ROOM |
+| 2 | `association` | yes | MID, MIS |
+| 2 | `bathrooms` |  | MLS, ROOM |
+| 2 | `buyer_1` |  | MID, TW |
+| 2 | `buyer_2` |  | MID, TW |
+| 2 | `buyer_agent_1` |  | MID, TW |
+| 2 | `color` |  | MID, MIS |
+| 2 | `comp_listing` | yes | MID, MIS |
+| 2 | `contingency_removal_date` |  | MID, ROOM |
+| 2 | `contract_amount` |  | MID, ROOM |
+| 2 | `deed_book` | yes | MID, MIS |
+| 2 | `deed_page` | yes | MID, MIS |
+| 2 | `deed_type_offered` |  | MID, MIS |
+| 2 | `electrical` |  | MID, MIS |
+| 2 | `escrow_provider` |  | MID, ROOM |
+| 2 | `full_baths_basement` | yes | MID, MIS |
+| 2 | `full_baths_level_1` | yes | MID, MIS |
+| 2 | `full_baths_level_2` | yes | MID, MIS |
+| 2 | `full_baths_level_3` | yes | MID, MIS |
+| 2 | `full_baths_upper` | yes | MID, MIS |
+| 2 | `furniture` |  | MID, MIS |
+| 2 | `half_baths_basement` | yes | MID, MIS |
+| 2 | `half_baths_level_1` | yes | MID, MIS |
+| 2 | `half_baths_level_2` | yes | MID, MIS |
+| 2 | `half_baths_level_3` | yes | MID, MIS |
+| 2 | `half_baths_upper` | yes | MID, MIS |
+| 2 | `heat_type` |  | MID, MIS |
+| 2 | `home_warranty_provider` |  | MID, ROOM |
+| 2 | `homeowners_insurance_provider` |  | MID, ROOM |
+| 2 | `kick_out` |  | MID, MIS |
+| 2 | `leased_land` | yes | MID, MIS |
+| 2 | `listing_agent_2` |  | MID, MIS |
+| 2 | `listing_agreement_type` | yes | MID, MIS |
+| 2 | `lot_size_sqft` |  | MLS, ROOM |
+| 2 | `map_lot` | yes | MID, MIS |
+| 2 | `neighborhood_association` |  | MID, MIS |
+| 2 | `occupant_type` |  | MID, MIS |
+| 2 | `offer_date` |  | MID, ROOM |
+| 2 | `origin_of_lead` |  | MID, ROOM |
+| 2 | `property_sub_type` | yes | MID, MIS |
+| 2 | `road_frontage` |  | MID, MIS |
+| 2 | `road_frontage_feet` |  | MID, MIS |
+| 2 | `seasonal` | yes | MID, MIS |
+| 2 | `seller_concession_amount` |  | MID, ROOM |
+| 2 | `showing_service` | yes | MID, MIS |
+| 2 | `special_circumstances` |  | MID, ROOM |
+| 2 | `sqft_below_grade` | yes | MID, MIS |
+| 2 | `sqft_source` | yes | MID, MIS |
+| 2 | `survey_provider` |  | MID, ROOM |
+| 2 | `surveyed` | yes | MID, MIS |
+| 2 | `town` | yes | MID, MIS |
+| 2 | `tree_growth` | yes | MID, MIS |
+| 2 | `unit_number` |  | MID, MIS |
+| 2 | `year_acquired` |  | MID, MIS |
+| 2 | `zip4` |  | MID, MIS |
+| 2 | `zoning_overlay` | yes | MID, MIS |
+| 1 | `(room-only: buyerAgent2)` |  | EBRA |
+| 1 | `(room-only: listingAgent2)` |  | ERTS |
+| 1 | `address2` |  | ROOM |
+| 1 | `bank_owned_reo` |  | MID |
+| 1 | `binding_date` |  | ROOM |
+| 1 | `buyer_agent_2` |  | MID |
+| 1 | `deed_all_or_partial` |  | MID |
+| 1 | `deed_restrictions` |  | MID |
+| 1 | `docusign_room_id` |  | TW |
+| 1 | `firm_panel` |  | MIS |
+| 1 | `flood_zone` |  | MIS |
+| 1 | `hers_certified` | yes | MID |
+| 1 | `in_sfha` |  | MIS |
+| 1 | `representation_side` |  | MID |
+| 1 | `road_frontage_source` |  | MID |
+| 1 | `seller_executed_contract_date` |  | ROOM |
+| 1 | `two_houses_on_lot` |  | MID |
+| 1 | `water_views` |  | MID |
+| 1 | `waterfront` |  | MID |
+
+**Canonical fields tracked: 124** · **total field-entries across destinations: 336** · **MLS-required fields reused beyond the MLS: 47/49**
