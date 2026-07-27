@@ -35,7 +35,7 @@ missing" is always a current answer instead of an audit.
 git clone https://github.com/zeiglerbd5/realtorai.git && cd realtorai
 pip install -e ".[dev]"          # or: uv sync
 
-pytest                           # 105 tests, fully offline, ~2 seconds
+pytest                           # 110 tests, fully offline, ~2 seconds
 python scripts/demo_listing_workflow.py --fresh   # full intake on the reference listing
 realtorai-web                    # → http://127.0.0.1:8421
 ```
@@ -95,10 +95,20 @@ Contract task list joins the room, the signed contract is filed, the
 office's Transaction Worksheet is filled, the MLS listing moves to Pending,
 and every contract deadline (EMD, inspection, financing commitment,
 closing) lands on the dashboard as a dated item. Prior phases' timelines
-are archived on the envelope, never overwritten. Try it:
+are archived on the envelope, never overwritten.
+
+**Closing completes the arc.** When the settlement statement arrives, the
+closing phase reads it, cross-checks it against the record — final price
+vs contract, negotiated concessions actually present, commission sanity —
+and HOLDS for team review on any discrepancy (the office rule). Then: the
+Closing task list joins the room, the statement is filed, the Transaction
+Worksheet updates with final numbers, the MLS listing moves to Closed,
+open deadlines resolve, the client is marked closed, and the room itself
+closes with its closing date — the same end state as a real closed room.
+The whole lifecycle, offline:
 
 ```bash
-python scripts/demo_under_contract.py
+python scripts/demo_lifecycle.py    # listing -> under contract -> closed
 ```
 
 ## The approval gate is structural
@@ -153,7 +163,7 @@ here are the two listings") classified as noise — the taxonomy was widened,
 and the fix is locked in by a runnable eval with fictionalized cases:
 
 ```bash
-python scripts/eval_intake_classifier.py    # 12/12, needs ANTHROPIC_API_KEY
+python scripts/eval_intake_classifier.py    # 14/14, needs ANTHROPIC_API_KEY
 ```
 
 ## Paperwork filling: capture once, verify once, fill everywhere
@@ -301,15 +311,16 @@ agent identities, or agency-internal forms.
 
 ## Status & roadmap
 
-Working today (on mock backends where noted): listing + buyer intake
-workflows, the under-contract phase (P&S extraction, UC/EMD task lists,
-Transaction Worksheet, MLS to Pending, deadline tracking), conversational
+Working today (on mock backends where noted): the full transaction
+lifecycle — listing + buyer intake, the under-contract phase (P&S
+extraction, UC/EMD task lists, Transaction Worksheet, MLS to Pending,
+deadline tracking), and the closing phase (settlement-statement review
+with discrepancy holds, room close-out) — plus the conversational
 approval queue, dashboard copilot, live public records for
 Penobscot-county properties, deterministic form filling, MLS readiness
-reporting, email-intake proposals, 105-test offline suite.
+reporting, email-intake proposals, and a 110-test offline suite.
 
-Next: the closing phase workflow (settlement statement review, commission
-tracking); live Rooms/Spark cutover when broker + MLS approval lands; more
+Next: live Rooms/Spark cutover when broker + MLS approval lands; more
 county registry adapters (Hancock/AcclaimWeb, Waldo); calendar actions;
 LoRA fine-tuning on the accumulated approval feedback.
 

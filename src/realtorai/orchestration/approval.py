@@ -202,7 +202,7 @@ class ApprovalLoop:
             }
         ]
         def _valid(item: dict) -> bool:
-            if item.get("kind") == "under_contract":
+            if item.get("kind") in ("under_contract", "closing"):
                 return bool(item.get("transaction_slug"))
             return item.get("side") in ("listing", "buyer")
 
@@ -218,22 +218,32 @@ class ApprovalLoop:
 
         results: list[dict] = []
         for item in planned:
-            if item.get("kind") == "under_contract":
-                from realtorai.workflows.under_contract import (
-                    start_under_contract_workflow,
-                )
+            if item.get("kind") in ("under_contract", "closing"):
+                if item["kind"] == "closing":
+                    from realtorai.workflows.closing import start_closing_workflow
 
-                envelope = await start_under_contract_workflow(
-                    item["transaction_slug"],
-                    documents=documents,
-                    paperwork_files=paperwork_files,
-                    contract_terms=item.get("contract_terms"),
-                )
+                    envelope = await start_closing_workflow(
+                        item["transaction_slug"],
+                        documents=documents,
+                        paperwork_files=paperwork_files,
+                        closing_terms=item.get("closing_terms"),
+                    )
+                else:
+                    from realtorai.workflows.under_contract import (
+                        start_under_contract_workflow,
+                    )
+
+                    envelope = await start_under_contract_workflow(
+                        item["transaction_slug"],
+                        documents=documents,
+                        paperwork_files=paperwork_files,
+                        contract_terms=item.get("contract_terms"),
+                    )
                 steps = (envelope.workflow or {}).get("steps", [])
                 results.append(
                     {
                         "slug": envelope.slug,
-                        "side": "under_contract",
+                        "side": item["kind"],
                         "client_name": item.get("client_name"),
                         "workflow_status": (envelope.workflow or {}).get("status"),
                         "waiting_on": [
@@ -253,7 +263,7 @@ class ApprovalLoop:
                 logger.info(
                     "workflow_kickoff_executed",
                     task_id=task.id,
-                    side="under_contract",
+                    side=item["kind"],
                     slug=envelope.slug,
                     status=(envelope.workflow or {}).get("status"),
                 )

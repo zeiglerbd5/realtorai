@@ -81,7 +81,7 @@ class IntakeClassification(BaseModel):
     """What kind of new-client intake an email represents."""
 
     intent: Literal[
-        "new_listing_client", "new_buyer_client", "under_contract", "other"
+        "new_listing_client", "new_buyer_client", "under_contract", "closing", "other"
     ]
     client_name: str | None = Field(default=None, description="Client name if identifiable")
     property_address: str | None = Field(default=None, description="Listing address if present")
@@ -99,9 +99,11 @@ side (Exclusive Right to Sell). "new_buyer_client" = buyer side (Exclusive Buyer
 Representation Agreement). "under_contract" = an ACCEPTED offer on an existing \
 deal — a fully signed Purchase & Sale Agreement (completed envelope, "we're \
 under contract", accepted-offer announcement). A mere offer, counter, or \
-negotiation is NOT under_contract. Anything else — deal chatter (offers, \
-counters, earnest money, disclosures, showings), office broadcasts, vendor \
-mail, marketing — is "other". If one email hands off multiple new clients, \
+negotiation is NOT under_contract. "closing" = a deal reaching the closing \
+table — the settlement/closing statement or Closing Disclosure arriving for \
+review, clear-to-close, or a closing being scheduled. Anything else — deal \
+chatter (offers, counters, earnest money, disclosures, showings), office \
+broadcasts, vendor mail, marketing — is "other". If one email hands off multiple new clients, \
 put the first in client_name/property_address and list the rest in reasoning."""
 
 

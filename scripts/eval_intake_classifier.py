@@ -69,6 +69,21 @@ CASES: list[tuple[str, str, list[str], str]] = [
         "under_contract",
     ),
     (
+        "Settlement Statement - 14 Ledgeview Drive",
+        "Good afternoon, attached please find the settlement statement for "
+        "14 Ledgeview Drive for your review prior to Friday's closing. Let "
+        "us know if any changes are needed. — Coastal Title Co.",
+        ["Settlement_Statement.pdf"],
+        "closing",
+    ),
+    (
+        "clear to close!",
+        "Lender just confirmed we are clear to close on 3 Quarry Road. "
+        "Closing is scheduled for the 15th at 10am at the title company.",
+        [],
+        "closing",
+    ),
+    (
         "Seller Counter Offer",
         "Hi both, attached is the seller counter. I'd recommend that you sign "
         "today so we have an extra day for inspections. $285,000 purchase price, "

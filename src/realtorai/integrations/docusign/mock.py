@@ -423,6 +423,7 @@ class MockRoomsAPI:
         m = method.upper()
         patterns: list[tuple[str, str, Any]] = [
             ("GET", r"^/rooms/(\d+)$", lambda g: self._get_room(int(g[0]), params)),
+            ("PUT", r"^/rooms/(\d+)$", lambda g: self._update_room(int(g[0]), json_data)),
             ("DELETE", r"^/rooms/(\d+)$", lambda g: self._delete_room(int(g[0]))),
             ("GET", r"^/rooms/(\d+)/field_data$", lambda g: self._get_field_data(int(g[0]))),
             (
@@ -505,6 +506,18 @@ class MockRoomsAPI:
         if include_field_data:
             out["fieldData"] = {"data": room.get("fieldData", {})}
         return out
+
+    def _update_room(self, room_id: int, body: dict[str, Any] | None) -> dict[str, Any]:
+        room = self._state["rooms"].get(str(room_id))
+        if room is None:
+            raise MockAPIError(404, f"Room {room_id} not found")
+        body = body or {}
+        for key in ("roomStatus", "closedDate", "closedStatusId", "name"):
+            if key in body:
+                room[key] = body[key]
+        self._save()
+        logger.info("mock_room_updated", room_id=room_id, status=room.get("roomStatus"))
+        return {k: v for k, v in room.items() if k != "fieldData"}
 
     def _create_room(self, body: dict[str, Any]) -> dict[str, Any]:
         if not body.get("name"):
