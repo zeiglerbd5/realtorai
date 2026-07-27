@@ -92,6 +92,17 @@ class MockSparkMLS:
         self._save()
         return photo_id
 
+    def set_listing_status(self, listing_key: str, status: str) -> bool:
+        """Update a listing's RESO status fields (e.g. Draft -> Pending)."""
+        listing = self._state["listings"].get(listing_key)
+        if listing is None:
+            return False
+        listing["StandardStatus"] = status.title()
+        listing["MlsStatus"] = status.title()
+        listing["ModificationTimestamp"] = _now()
+        self._save()
+        return True
+
     def get_listing(self, listing_key: str) -> dict[str, Any] | None:
         return self._state["listings"].get(listing_key)
 

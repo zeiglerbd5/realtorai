@@ -201,9 +201,12 @@ class ApprovalLoop:
                 "note": None,
             }
         ]
-        if not intake_dir.exists() or any(
-            s.get("side") not in ("listing", "buyer") for s in planned
-        ):
+        def _valid(item: dict) -> bool:
+            if item.get("kind") == "under_contract":
+                return bool(item.get("transaction_slug"))
+            return item.get("side") in ("listing", "buyer")
+
+        if not intake_dir.exists() or not all(_valid(s) for s in planned):
             raise ValueError(f"Invalid workflow kickoff proposal: {planned}, dir={intake_dir}")
 
         attachment_paths = [
@@ -215,6 +218,46 @@ class ApprovalLoop:
 
         results: list[dict] = []
         for item in planned:
+            if item.get("kind") == "under_contract":
+                from realtorai.workflows.under_contract import (
+                    start_under_contract_workflow,
+                )
+
+                envelope = await start_under_contract_workflow(
+                    item["transaction_slug"],
+                    documents=documents,
+                    paperwork_files=paperwork_files,
+                    contract_terms=item.get("contract_terms"),
+                )
+                steps = (envelope.workflow or {}).get("steps", [])
+                results.append(
+                    {
+                        "slug": envelope.slug,
+                        "side": "under_contract",
+                        "client_name": item.get("client_name"),
+                        "workflow_status": (envelope.workflow or {}).get("status"),
+                        "waiting_on": [
+                            s.get("title") or s.get("key") or "?"
+                            for s in steps
+                            if s.get("status") == "waiting"
+                        ],
+                        "blocked_on": [
+                            f"{s.get('title') or s.get('key')}: "
+                            f"{s.get('detail') or 'blocked'}"
+                            for s in steps
+                            if s.get("status") == "blocked"
+                        ],
+                        "mls_ready": None,
+                    }
+                )
+                logger.info(
+                    "workflow_kickoff_executed",
+                    task_id=task.id,
+                    side="under_contract",
+                    slug=envelope.slug,
+                    status=(envelope.workflow or {}).get("status"),
+                )
+                continue
             side = item["side"]
             prebuilt = item.get("record") or proposal.get("record")
             if prebuilt:
