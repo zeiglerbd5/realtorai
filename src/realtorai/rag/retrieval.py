@@ -7,6 +7,45 @@ from realtorai.rag.store import get_vector_store
 
 logger = structlog.get_logger()
 
+# Source-kind filters for tool-driven retrieval. "legal" = statute/rules/
+# ethics PDFs; "templates" = the team's email templates; "policies" = the
+# office P&P manual.
+KNOWLEDGE_KINDS: dict[str, list[str]] = {
+    "legal": [
+        "maine_title32_ch114.pdf",
+        "maine_re_commission_rules_2025-10.pdf",
+        "nar_code_of_ethics_2026.pdf",
+    ],
+    "templates": ["email_templates.md"],
+    "policies": ["policies_and_procedures.md"],
+}
+
+
+def search_knowledge(query: str, kind: str | None = None, n_results: int = 4) -> str:
+    """Tool-facing knowledge-base search with source-kind filtering.
+
+    Returns a formatted string with [source section] citations per hit —
+    the section-aware chunks carry their statute/rule headers, so answers
+    can cite "§13271" instead of hallucinating a reference.
+    """
+    store = get_vector_store()
+    where = None
+    sources = KNOWLEDGE_KINDS.get(kind or "")
+    if sources:
+        where = {"source": {"$in": sources}}
+    results = store.query(query, n_results=n_results, where=where)
+    if not results:
+        return "No knowledge-base matches."
+    lines = []
+    for r in results:
+        meta = r.get("metadata", {})
+        cite = meta.get("source", "?")
+        if meta.get("section"):
+            cite += f" — {meta['section']}"
+        text = " ".join((r.get("text") or "").split())
+        lines.append(f"[{cite}] {text[:600]}")
+    return "\n---\n".join(lines)
+
 
 class RAGRetriever:
     """Retrieves relevant context from the knowledge base.
