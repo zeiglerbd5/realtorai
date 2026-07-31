@@ -109,7 +109,13 @@ exclude_also = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+# 3.12, not the 3.11 floor in requires-python. numpy arrives transitively via
+# chromadb and ships stubs using PEP 695 `type` statements; mypy targeting 3.11
+# cannot parse them, and it is a fatal parse error rather than a suppressible
+# one (follow_imports/ignore_errors do not reach it). 3.11 support is still
+# enforced — the CI test matrix runs it, and ruff targets py311 — so what this
+# gives up is version-conditional stdlib stub selection, not real coverage.
+python_version = "3.12"
 strict = true
 
 # Untyped third parties. `msal` publishes no stubs; the rest are C-extension or
