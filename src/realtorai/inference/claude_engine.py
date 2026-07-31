@@ -22,9 +22,48 @@ logger = structlog.get_logger()
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+CACHE_CONTROL = {"type": "ephemeral"}
+
 
 class ClaudeEngineError(RuntimeError):
     """A Claude API call failed or is unavailable."""
+
+
+def _cacheable_system(system_prompt: str | None) -> Any:
+    """System prompt as a cache breakpoint over the static tools+system prefix."""
+    if not system_prompt:
+        return None
+    return [{"type": "text", "text": system_prompt, "cache_control": CACHE_CONTROL}]
+
+
+def _rolling_breakpoint(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Copy of `messages` with a cache breakpoint on the final content block.
+
+    The transcript grows by one exchange per agent-loop iteration, so marking
+    the tail means each call caches everything it just added and the next call
+    reads the whole prefix back. Returns the input unchanged when the tail is
+    not a shape we can safely mark (SDK block objects are passed through as-is).
+    """
+    if not messages:
+        return messages
+    content = messages[-1].get("content")
+    if isinstance(content, str):
+        blocks: list[Any] = [{"type": "text", "text": content}]
+    elif isinstance(content, list):
+        blocks = [dict(b) if isinstance(b, dict) else b for b in content]
+    else:
+        return messages
+
+    for block in reversed(blocks):
+        if isinstance(block, dict):
+            block["cache_control"] = CACHE_CONTROL
+            break
+    else:
+        return messages
+
+    tail = dict(messages[-1])
+    tail["content"] = blocks
+    return [*messages[:-1], tail]
 
 
 class ClaudeEngine:
@@ -108,6 +147,13 @@ class ClaudeEngine:
         The caller owns the agent loop — executing tool calls and appending
         tool_result blocks (see orchestration/copilot.py). Thinking blocks in
         the response content must be passed back verbatim on the next turn.
+
+        Prompt-cached: the loop re-sends tools + system + the whole transcript
+        on every iteration, so a scoping conversation pays for the same prefix
+        five or six times over. Two breakpoints (static prefix, rolling tail)
+        drop the repeat to 10% of input price. Deliberately not applied to the
+        generate_* calls — those run once per transaction, days apart, so the
+        1.25x cache write would never be read back.
         """
         import anthropic
 
@@ -118,21 +164,25 @@ class ClaudeEngine:
                 model=model,
                 max_tokens=max_tokens,
                 thinking={"type": "adaptive"},
-                system=system_prompt or anthropic.NOT_GIVEN,
+                system=_cacheable_system(system_prompt) or anthropic.NOT_GIVEN,
                 tools=tools,
-                messages=messages,
+                messages=_rolling_breakpoint(messages),
             )
         except anthropic.APIConnectionError as e:
             raise ClaudeEngineError(f"Claude API unreachable: {e}") from e
         except anthropic.APIStatusError as e:
             raise ClaudeEngineError(f"Claude API error {e.status_code}: {e.message}") from e
 
+        usage = response.usage
         logger.info(
             "claude_chat_turn",
             task=task.value,
             model=model,
             stop_reason=response.stop_reason,
-            output_tokens=response.usage.output_tokens,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_write=getattr(usage, "cache_creation_input_tokens", None),
+            cache_read=getattr(usage, "cache_read_input_tokens", None),
         )
         return response
 

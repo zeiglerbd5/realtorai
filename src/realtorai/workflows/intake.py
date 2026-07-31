@@ -223,11 +223,15 @@ async def verify_transaction_record(
 ) -> VerificationReport:
     """Cross-check the extracted record against sources (REVIEW tier)."""
     engine = get_claude_engine()
+    # Documents first, record last: the paperwork is the stable bulk of this
+    # prompt and the record is what changes between attempts (a BLOCKED verify
+    # re-runs on resume against a corrected record). Variable content last
+    # keeps the expensive part of the prefix reusable.
     prompt = (
-        "Extracted transaction record (JSON):\n\n"
-        + record.model_dump_json(indent=2, exclude_none=True)
-        + "\n\nSource documents:\n\n"
+        "Source documents:\n\n"
         + _documents_block(documents)
+        + "\n\nExtracted transaction record (JSON) to audit against them:\n\n"
+        + record.model_dump_json(indent=2, exclude_none=True)
     )
     report = await engine.generate_structured(
         prompt,
