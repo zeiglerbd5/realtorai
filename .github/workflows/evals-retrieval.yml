@@ -1,0 +1,67 @@
+name: Evals (retrieval)
+
+# Weekly, never per-push: this needs a ~90 MB embedding model and rebuilds the
+# vector store from documents fetched over the network. Public-document URLs
+# rot, and a rotted URL must never block a PR.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-retrieval
+  cancel-in-progress: false
+
+jobs:
+  retrieval:
+    name: knowledge-base retrieval (public corpus only)
+    if: github.repository == 'zeiglerbd5/realtorai'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATA_DIR: ${{ github.workspace }}/data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev]" -c constraints.txt
+
+      - name: Cache the sentence-transformers model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-all-MiniLM-L6-v2
+
+      # Only the three published legal documents can be rebuilt here. The six
+      # cases expecting the agency's internal manual and email templates
+      # declare those as `requires` and report skip — hence --min-cases 4,
+      # so an all-skipped run cannot read as green.
+      - name: Fetch the public legal corpus (checksummed)
+        run: python -m realtorai.evals fetch-corpus --dest data/corpus
+
+      - name: Ingest into the vector store
+        run: >-
+          realtorai ingest
+          data/corpus/maine_title32_ch114.pdf
+          data/corpus/maine_re_commission_rules_2025-10.pdf
+          data/corpus/nar_code_of_ethics_2026.pdf
+
+      - name: Retrieval eval
+        run: >-
+          python -m realtorai.evals retrieval
+          --metric recall_at_k --threshold 1.0
+          --min-cases 4
+          --json evals-out/retrieval.json
+          --github-summary
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report-retrieval
+          path: evals-out/
