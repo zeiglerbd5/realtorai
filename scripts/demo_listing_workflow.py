@@ -25,15 +25,15 @@ SIGNED_PAPERWORK: list[tuple[str, bytes]] = [
     (
         "Exclusive Right to Sell - 22 Penobscot St - SIGNED.txt",
         b"Exclusive Right to Sell Listing Agreement\n"
-        b"Seller: Brett D. Zeigler\nProperty: 22 Penobscot Street, Orono, ME 04473\n"
+        b"Seller: Morgan T. Rowe\nProperty: 22 Penobscot Street, Orono, ME 04473\n"
         b"List price: $325,000  Commission: 1%\nTerm: 2026-06-01 through 2026-12-01\n"
-        b"Deed reference: Book 16601, Pages 156-157\nSigned: Brett D. Zeigler, Agent One",
+        b"Deed reference: Book 16601, Pages 156-157\nSigned: Morgan T. Rowe, Agent One",
     ),
     (
         "Brokerage Relationship Form - SIGNED.txt",
         b"Maine Real Estate Commission Brokerage Relationship Form (Form #3)\n"
         b"Licensee: Agent One, The Agency\n"
-        b"Client: Brett D. Zeigler (Seller Client)\nDated: 2026-05-31",
+        b"Client: Morgan T. Rowe (Seller Client)\nDated: 2026-05-31",
     ),
     (
         "22 penobscot deed.txt",
@@ -69,7 +69,7 @@ async def main() -> int:
         record,
         documents=documents,
         paperwork_files=SIGNED_PAPERWORK,
-        client_name="Brett Zeigler",
+        client_name="Morgan Rowe",
     )
 
     # ---- timeline ----------------------------------------------------------

@@ -7,7 +7,7 @@ the Opus deed review on the fetched scan when ANTHROPIC_API_KEY is set.
 Usage:
     python scripts/deed_lookup.py penobscot 16601 156
     python scripts/deed_lookup.py penobscot 16601 156 --review
-    python scripts/deed_lookup.py penobscot 16601 156 --town Orono --owner "Brett D. Zeigler"
+    python scripts/deed_lookup.py penobscot 16601 156 --town Orono --owner "Morgan T. Rowe"
 """
 
 import argparse

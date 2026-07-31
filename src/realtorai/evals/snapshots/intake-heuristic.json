@@ -1,0 +1,183 @@
+{
+  "backend": "heuristic",
+  "counts": {
+    "pass": 17,
+    "xfail": 3
+  },
+  "metrics": {
+    "accuracy": 0.85,
+    "balanced_accuracy": 0.883333,
+    "macro_f1": 0.862857,
+    "majority_baseline": 0.4
+  },
+  "name": "intake-classifier",
+  "per_label": [
+    {
+      "f1": 0.857143,
+      "label": "new_listing_client",
+      "precision": 0.75,
+      "predicted": 4,
+      "recall": 1.0,
+      "support": 3,
+      "true_positives": 3
+    },
+    {
+      "f1": 1.0,
+      "label": "new_buyer_client",
+      "precision": 1.0,
+      "predicted": 3,
+      "recall": 1.0,
+      "support": 3,
+      "true_positives": 3
+    },
+    {
+      "f1": 0.857143,
+      "label": "under_contract",
+      "precision": 0.75,
+      "predicted": 4,
+      "recall": 1.0,
+      "support": 3,
+      "true_positives": 3
+    },
+    {
+      "f1": 0.8,
+      "label": "closing",
+      "precision": 1.0,
+      "predicted": 2,
+      "recall": 0.666667,
+      "support": 3,
+      "true_positives": 2
+    },
+    {
+      "f1": 0.8,
+      "label": "other",
+      "precision": 0.857143,
+      "predicted": 7,
+      "recall": 0.75,
+      "support": 8,
+      "true_positives": 6
+    }
+  ],
+  "results": [
+    {
+      "case_id": "accepted-offer-announcement",
+      "expected": "under_contract",
+      "predicted": "under_contract",
+      "status": "pass"
+    },
+    {
+      "case_id": "buyer-agreement-signed-envelope",
+      "expected": "new_buyer_client",
+      "predicted": "new_buyer_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "buyer-offer",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "buyer-prose-handoff",
+      "expected": "new_buyer_client",
+      "predicted": "new_buyer_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "clear-to-close",
+      "expected": "closing",
+      "predicted": "closing",
+      "status": "pass"
+    },
+    {
+      "case_id": "coming-soon-handoff",
+      "expected": "new_listing_client",
+      "predicted": "new_listing_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "ebra-envelope",
+      "expected": "new_buyer_client",
+      "predicted": "new_buyer_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "emd-dropoff",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "erts-envelope",
+      "expected": "new_listing_client",
+      "predicted": "new_listing_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "mls-broadcast-new-listing",
+      "expected": "other",
+      "predicted": "new_listing_client",
+      "status": "xfail"
+    },
+    {
+      "case_id": "mls-newsletter",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "office-parking",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "prose-handoff-two-listings",
+      "expected": "new_listing_client",
+      "predicted": "new_listing_client",
+      "status": "pass"
+    },
+    {
+      "case_id": "ps-draft-for-review",
+      "expected": "other",
+      "predicted": "under_contract",
+      "status": "xfail"
+    },
+    {
+      "case_id": "ps-envelope",
+      "expected": "under_contract",
+      "predicted": "under_contract",
+      "status": "pass"
+    },
+    {
+      "case_id": "seller-counter",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "settlement-statement",
+      "expected": "closing",
+      "predicted": "closing",
+      "status": "pass"
+    },
+    {
+      "case_id": "spd-draft",
+      "expected": "other",
+      "predicted": "other",
+      "status": "pass"
+    },
+    {
+      "case_id": "title-company-scheduling",
+      "expected": "closing",
+      "predicted": "other",
+      "status": "xfail"
+    },
+    {
+      "case_id": "uc-prose",
+      "expected": "under_contract",
+      "predicted": "under_contract",
+      "status": "pass"
+    }
+  ]
+}
