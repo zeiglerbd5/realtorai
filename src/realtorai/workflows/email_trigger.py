@@ -32,8 +32,29 @@ from realtorai.workflows.listing import start_listing_workflow
 logger = structlog.get_logger()
 
 _LISTING_HINTS = ("exclusive right to sell", "listing agreement", "new listing")
-_BUYER_HINTS = ("buyer representation", "buyer rep", "buyer agreement", "new buyer")
-_UC_HINTS = ("purchase and sale", "purchase & sale", "under contract", "accepted offer")
+# "buyer agency agreement" is the form's actual name and was missing, so a
+# signed-envelope notification fell through to `other` (evals/cases/intake.py::
+# buyer-agreement-signed-envelope).
+_BUYER_HINTS = (
+    "buyer representation",
+    "buyer rep",
+    "buyer agreement",
+    "buyer agency agreement",
+    "new buyer",
+)
+# "accepted offer" only matched that exact word order, so the far more natural
+# "they accepted our offer" missed (::accepted-offer-announcement). Keep
+# "fully executed contract" specific — a bare "fully executed" would capture
+# "fully executed listing agreement", and _UC_HINTS is tested before listing.
+_UC_HINTS = (
+    "purchase and sale",
+    "purchase & sale",
+    "under contract",
+    "accepted offer",
+    "accepted our offer",
+    "offer was accepted",
+    "fully executed contract",
+)
 _CLOSING_HINTS = (
     "settlement statement", "closing statement", "closing disclosure",
     "clear to close", "alta statement",
