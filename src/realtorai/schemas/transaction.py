@@ -94,6 +94,11 @@ class TransactionRecord(BaseModel):
     bedrooms: int | None = None
     bathrooms: Decimal | None = Field(default=None, description="Total; half baths = 0.5")
     rooms_total: int | None = Field(default=None, description="Excludes bathrooms")
+    unit_count: int | None = Field(
+        default=None,
+        description="Dwelling units; MLS-required on Multi-Family. Not derivable "
+        "from transaction_type — 'Multi-Family' does not say how many.",
+    )
     fireplaces_total: int | None = None
     # MLS bath matrix — per-level counts (all 10 are MLS-required)
     full_baths_basement: int | None = None
@@ -197,6 +202,39 @@ class TransactionRecord(BaseModel):
     homeowners_insurance_provider: str | None = None
     home_warranty_provider: str | None = None
     survey_provider: str | None = None
+
+    # ---- Condition & conveyance ----
+    # Disclosure intel the paperwork states plainly but no form field claimed,
+    # so it used to land in `comments` as prose — extracted, then unreachable by
+    # every filler. Nothing here feeds the room/MLS build today; these exist so
+    # the facts are addressable when the P&S, disclosures, or a buyer question
+    # needs them. Keep them free-text where the source is free-text; inventing
+    # an enum the paperwork does not use would just move the problem.
+    personal_property_included: str | None = Field(
+        default=None,
+        description="Appliances/chattel conveying with the property, as listed",
+    )
+    system_updates: str | None = Field(
+        default=None,
+        description="Replacements and service history with dates/servicer, if stated",
+    )
+    known_defects: str | None = Field(
+        default=None, description="Defects the seller disclosed, quoted or paraphrased"
+    )
+    basement_moisture: str | None = Field(
+        default=None, description="Water intrusion observations — location and conditions"
+    )
+    sump_pump: bool | None = None
+    lead_paint_status: Literal[
+        "None Known", "Known", "Presumed (pre-1978)", "Unknown"
+    ] | None = Field(
+        default=None,
+        description="Seller's stated position; 'Presumed' when age triggers it and "
+        "no test exists. Distinct from whether the disclosure was signed.",
+    )
+    lead_paint_condition: str | None = Field(
+        default=None, description="Observed paint condition, e.g. peeling window trim"
+    )
 
     # ---- Meta ----
     origin_of_lead: str | None = None
