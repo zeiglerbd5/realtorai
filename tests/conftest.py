@@ -11,13 +11,49 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
+#: Every env var that could let a test reach a real service or a real account.
+#: Blanked for the whole suite by `_no_ambient_secrets` below.
+_AMBIENT_SECRETS = (
+    "ANTHROPIC_API_KEY",
+    "DOCUSIGN_CLIENT_ID",
+    "DOCUSIGN_CLIENT_SECRET",
+    "DOCUSIGN_ACCOUNT_ID",
+    "SPARK_API_KEY",
+    "SPARK_CLIENT_ID",
+    "SPARK_CLIENT_SECRET",
+    "SPARK_DEMO_TOKEN",
+    "GRAPH_CLIENT_ID",
+    "GRAPH_CLIENT_SECRET",
+    "MATTERPORT_API_TOKEN",
+    "MATTERPORT_API_SECRET",
+)
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for async tests."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+
+@pytest.fixture(autouse=True)
+def _no_ambient_secrets(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Keep the developer's real .env out of every test.
+
+    `Settings` is declared with `SettingsConfigDict(env_file=".env")`, so any
+    test that reaches `get_settings()` without `offline_env` reads the real
+    keys sitting in the repo root — which is how an "offline" suite starts
+    making live calls on one machine and not another.
+
+    Deliberately narrower than `offline_env`: this only blanks credentials and
+    forces the mock backends. It does not relocate DATA_DIR or tear down the
+    database singleton, because doing that for all 116 tests is a far bigger
+    behavioural change than the isolation it buys.
+    """
+    for name in _AMBIENT_SECRETS:
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("DOCUSIGN_BACKEND", "mock")
+    monkeypatch.setenv("MLS_BACKEND", "mock")
+    monkeypatch.setenv("PUBLIC_RECORDS_LIVE", "false")
+
+    from realtorai.config.settings import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture

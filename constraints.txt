@@ -1,0 +1,25 @@
+# Pinned dev toolchain.
+#
+# CI gates on ruff, mypy (strict, see the debt list in pyproject.toml), and a
+# pytest run with `filterwarnings = ["error::DeprecationWarning"]`. All three
+# turn a dependency release into a red build on code nobody touched, so the
+# toolchain is pinned and upgraded deliberately.
+#
+# Runtime dependencies stay unpinned in pyproject.toml — this file constrains
+# only the tools that decide whether a build passes.
+#
+# Install:  pip install -e ".[dev]" -c constraints.txt
+# Upgrade:  bump a pin here, run the suite locally, commit the version bump
+#           together with whatever it broke.
+
+mypy==2.0.0
+ruff==0.15.12
+pytest==9.0.3
+pytest-asyncio==1.3.0
+pytest-cov==7.1.0
+pytest-socket==0.7.0
+
+# Real stub packages — these libraries ship no inline types, but typeshed
+# stubs exist, so `ignore_missing_imports` would be papering over a fixable gap.
+types-PyYAML==6.0.12.20250915
+types-Markdown==3.9.0.20250906

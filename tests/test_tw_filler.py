@@ -1,5 +1,6 @@
 """Transaction Worksheet filler — mapping tests (pure) + fill test (template-gated)."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,14 @@ from realtorai.fixtures import build_22_penobscot
 
 TEMPLATE = Path("data/templates/Transaction-Worksheet.pdf")
 
+# data/templates/ is gitignored, so this gate is permanently closed in CI —
+# `pytest -m template` reports it rather than letting it hide. Set
+# REALTORAI_REQUIRE_TEMPLATES=1 locally to turn the skip into a real failure.
+template_gated = pytest.mark.skipif(
+    not TEMPLATE.exists() and os.environ.get("REALTORAI_REQUIRE_TEMPLATES") != "1",
+    reason="TW template not present (internal form)",
+)
+
 
 def test_field_mapping_from_fixture():
     record = build_22_penobscot()
@@ -21,10 +30,10 @@ def test_field_mapping_from_fixture():
     values = tw_field_values(record)
 
     assert values["Property Address City State Zip"] == "22 Penobscot Street, Orono, ME 04473"
-    assert values["Seller Names 1"] == "Brett D. Zeigler"
+    assert values["Seller Names 1"] == "Morgan T. Rowe"
     assert values["Listing Agent"] == "Agent One"
     assert values["Listing Agency"] == "The Agency REALTORS"
-    assert values["Sellers Email"] == "zeiglerbd5@gmail.com"
+    assert values["Sellers Email"] == "morgan.rowe@example.com"
     assert values["Contract Date"] == "06/01/2026"
     assert values["Estimated Sale Price"] == "$325,000"
     # Commission lands under the generic name, or the agency's real field
@@ -62,7 +71,8 @@ def test_sold_terms_checkboxes():
     assert all(values[f] == "/Off" for f in SOLD_TERMS_CHECKBOXES.values())
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="TW template not present (internal form)")
+@pytest.mark.template
+@template_gated
 def test_fill_round_trip(tmp_path):
     from pypdf import PdfReader
 
@@ -71,7 +81,7 @@ def test_fill_round_trip(tmp_path):
     out = fill_transaction_worksheet(record, TEMPLATE, tmp_path / "tw.pdf")
 
     fields = PdfReader(str(out)).get_fields()
-    assert fields["Seller Names 1"].get("/V") == "Brett D. Zeigler"
+    assert fields["Seller Names 1"].get("/V") == "Morgan T. Rowe"
     assert fields["Room ID"].get("/V") == "2001"
     assert str(fields["MultiFamily"].get("/V")) == "/On"
     # Template's stale 'Residential' tick must be cleared

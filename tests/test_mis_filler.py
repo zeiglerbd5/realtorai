@@ -1,5 +1,6 @@
 """Master Information Sheet filler — mapping tests + fill test (template-gated)."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,14 @@ from realtorai.documents.mis_filler import fill_master_information_sheet, mis_fi
 from realtorai.fixtures import build_22_penobscot
 
 TEMPLATE = Path("data/templates/Master-Information-Sheet.pdf")
+
+# data/templates/ is gitignored, so this gate is permanently closed in CI —
+# `pytest -m template` reports it rather than letting it hide. Set
+# REALTORAI_REQUIRE_TEMPLATES=1 locally to turn the skip into a real failure.
+template_gated = pytest.mark.skipif(
+    not TEMPLATE.exists() and os.environ.get("REALTORAI_REQUIRE_TEMPLATES") != "1",
+    reason="MIS template not present (internal form)",
+)
 
 
 def test_field_mapping_from_fixture():
@@ -28,7 +37,7 @@ def test_field_mapping_from_fixture():
     assert values["f49_Level2FullHalf"] == "1F / 0H"
     assert values["f55_Garage"] == "Yes"
     assert values["f60_RoadFrontageft"] == "66"
-    assert values["f75_OwnerofRecord"] == "Brett D. Zeigler"
+    assert values["f75_OwnerofRecord"] == "Morgan T. Rowe"
     assert values["f77_AssessedValuetotal"] == "$264,200"
     # Deed vesting composes book/page + year acquired
     assert values["f80_VestingDeedtypeBookPaged"] == "Bk 16601 / Pg 156-157, acquired 2022"
@@ -51,7 +60,8 @@ def test_blanks_are_dropped_never_guessed():
     assert values["f85_FloodZone"] == "X"
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="MIS template not present (internal form)")
+@pytest.mark.template
+@template_gated
 def test_fill_round_trip(tmp_path):
     from pypdf import PdfReader
 
@@ -59,5 +69,5 @@ def test_fill_round_trip(tmp_path):
     out = fill_master_information_sheet(record, TEMPLATE, tmp_path / "mis.pdf")
     fields = PdfReader(str(out)).get_fields()
     assert fields["f2_ListPrice"].get("/V") == "$325,000"
-    assert fields["f75_OwnerofRecord"].get("/V") == "Brett D. Zeigler"
+    assert fields["f75_OwnerofRecord"].get("/V") == "Morgan T. Rowe"
     assert fields["f44_Roomsexclbaths"].get("/V") == "12"
