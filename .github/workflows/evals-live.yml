@@ -1,0 +1,79 @@
+name: Evals (live API)
+
+# Never on pull_request: fork PRs cannot read secrets, so the job would be red
+# by construction for any outside contributor. Weekly rather than nightly
+# because ~20 Sonnet calls per run is real money for a signal that only moves
+# when the prompt or the case set moves — and workflow_dispatch covers the
+# "I just edited CLASSIFY_SYSTEM, run it now" case, which is when it matters.
+on:
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Minimum macro-F1 to pass"
+        required: false
+        default: "0.90"
+      filter:
+        description: "Case id or tag substring (blank = all cases)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-live
+  cancel-in-progress: false
+
+jobs:
+  intake-live:
+    name: intake classifier (live Sonnet)
+    # Stops a fork's inherited schedule from spending someone else's tokens.
+    if: github.repository == 'zeiglerbd5/realtorai'
+    runs-on: ubuntu-latest
+    environment: evals
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev]" -c constraints.txt
+
+      # Exits 2 (neutral) if the secret is missing, 1 only on a real regression.
+      - name: Intake classifier — live backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATA_DIR: ${{ runner.temp }}/realtorai-data
+        run: >-
+          python -m realtorai.evals intake
+          --backend live
+          --metric macro_f1
+          --threshold ${{ github.event.inputs.threshold || '0.90' }}
+          --filter "${{ github.event.inputs.filter }}"
+          --concurrency 4
+          --min-cases 1
+          --json evals-out/intake-live.json
+          --github-summary
+
+      - name: Same cases, offline backend (for the delta)
+        if: always()
+        run: >-
+          python -m realtorai.evals intake --backend heuristic
+          --json evals-out/intake-heuristic.json
+
+      - name: Live vs offline
+        if: always()
+        run: >-
+          python -m realtorai.evals compare
+          evals-out/intake-heuristic.json evals-out/intake-live.json
+          --github-summary
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-reports-live
+          path: evals-out/
