@@ -50,8 +50,11 @@ dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=5.0.0",
+    "pytest-socket>=0.7.0",  # CI asserts the suite is hermetic
     "ruff>=0.7.0",
     "mypy>=1.13.0",
+    "types-PyYAML>=6.0.12",
+    "types-Markdown>=3.9.0",
 ]
 
 [project.scripts]
@@ -78,8 +81,113 @@ ignore = ["UP042"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config"]
+markers = [
+    "template: needs a fillable PDF under data/templates/ (gitignored — always skips in CI; set REALTORAI_REQUIRE_TEMPLATES=1 locally to make the skip a failure)",
+]
+# Safe today (verified: the suite passes under -W error::DeprecationWarning) and
+# only stays safe because constraints.txt pins the toolchain.
+filterwarnings = ["error::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["realtorai"]
+branch = true
+omit = [
+    "*/realtorai/daemon.py",   # long-running poll loop, exercised by hand
+    "*/realtorai/cli.py",      # argparse entry points
+    "*/realtorai/ui/app.py",   # server wiring
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.$",
+]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+# Untyped third parties. `msal` publishes no stubs; the rest are C-extension or
+# dynamically-typed packages. PyYAML and Markdown are deliberately absent —
+# real stub packages exist for those and are installed via the dev extra.
+[[tool.mypy.overrides]]
+module = ["msal.*", "chromadb.*", "sentence_transformers.*", "duckduckgo_search.*", "keyring.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Type-debt burn-down.
+#
+# `strict = true` reports ~300 errors across these 55 modules, while the other
+# 50 modules in the package are already clean. Rather than run mypy
+# non-blocking (which nobody reads) or freeze a line-numbered baseline file
+# (which rots on the first reformat), the debt is an explicit opt-OUT list:
+# CI gates on mypy today, and anything not named here — including everything
+# added from now on — is strict from birth.
+#
+# The length of this list is the debt counter. Fixing a module means deleting
+# its line, which shows up in review as a real diff. Do not add to it.
+# ---------------------------------------------------------------------------
+[[tool.mypy.overrides]]
+ignore_errors = true
+module = [
+    "realtorai.agents.email_agent",
+    "realtorai.cli",
+    "realtorai.daemon",
+    "realtorai.documents.mis_filler",
+    "realtorai.documents.pdf_fill",
+    "realtorai.documents.templates",
+    "realtorai.documents.tw_filler",
+    "realtorai.inference.claude_engine",
+    "realtorai.inference.engine",
+    "realtorai.inference.extraction",
+    "realtorai.integrations.base",
+    "realtorai.integrations.docusign.client",
+    "realtorai.integrations.docusign.mock",
+    "realtorai.integrations.docusign.rooms",
+    "realtorai.integrations.fema_flood",
+    "realtorai.integrations.graph.auth",
+    "realtorai.integrations.graph.email",
+    "realtorai.integrations.maine_parcels",
+    "realtorai.integrations.matterport.auth",
+    "realtorai.integrations.matterport.client",
+    "realtorai.integrations.matterport.downloader",
+    "realtorai.integrations.matterport.models",
+    "realtorai.integrations.registry.browntech_alis",
+    "realtorai.integrations.spark.buyer_alerts",
+    "realtorai.integrations.spark.client",
+    "realtorai.integrations.spark.listings",
+    "realtorai.integrations.spark.mls_feeder",
+    "realtorai.integrations.spark.mock",
+    "realtorai.integrations.spark.submission",
+    "realtorai.orchestration.approval",
+    "realtorai.orchestration.copilot",
+    "realtorai.orchestration.dispatcher",
+    "realtorai.orchestration.feedback",
+    "realtorai.orchestration.queue",
+    "realtorai.rag.config",
+    "realtorai.rag.ingestion",
+    "realtorai.rag.retrieval",
+    "realtorai.rag.store",
+    "realtorai.storage.client_files",
+    "realtorai.storage.database",
+    "realtorai.storage.keychain",
+    "realtorai.transactions.tracker",
+    "realtorai.ui.app",
+    "realtorai.ui.routes.chat",
+    "realtorai.ui.routes.clients",
+    "realtorai.ui.routes.pending",
+    "realtorai.ui.routes.transactions",
+    "realtorai.workflows.buyer",
+    "realtorai.workflows.closing",
+    "realtorai.workflows.common",
+    "realtorai.workflows.email_trigger",
+    "realtorai.workflows.engine",
+    "realtorai.workflows.enrichment",
+    "realtorai.workflows.listing",
+    "realtorai.workflows.under_contract",
+]

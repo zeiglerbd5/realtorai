@@ -1,5 +1,6 @@
 """Transaction Worksheet filler — mapping tests (pure) + fill test (template-gated)."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,14 @@ from realtorai.documents.tw_filler import (
 from realtorai.fixtures import build_22_penobscot
 
 TEMPLATE = Path("data/templates/Transaction-Worksheet.pdf")
+
+# data/templates/ is gitignored, so this gate is permanently closed in CI —
+# `pytest -m template` reports it rather than letting it hide. Set
+# REALTORAI_REQUIRE_TEMPLATES=1 locally to turn the skip into a real failure.
+template_gated = pytest.mark.skipif(
+    not TEMPLATE.exists() and os.environ.get("REALTORAI_REQUIRE_TEMPLATES") != "1",
+    reason="TW template not present (internal form)",
+)
 
 
 def test_field_mapping_from_fixture():
@@ -62,7 +71,8 @@ def test_sold_terms_checkboxes():
     assert all(values[f] == "/Off" for f in SOLD_TERMS_CHECKBOXES.values())
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="TW template not present (internal form)")
+@pytest.mark.template
+@template_gated
 def test_fill_round_trip(tmp_path):
     from pypdf import PdfReader
 

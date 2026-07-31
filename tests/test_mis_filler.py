@@ -1,5 +1,6 @@
 """Master Information Sheet filler — mapping tests + fill test (template-gated)."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,14 @@ from realtorai.documents.mis_filler import fill_master_information_sheet, mis_fi
 from realtorai.fixtures import build_22_penobscot
 
 TEMPLATE = Path("data/templates/Master-Information-Sheet.pdf")
+
+# data/templates/ is gitignored, so this gate is permanently closed in CI —
+# `pytest -m template` reports it rather than letting it hide. Set
+# REALTORAI_REQUIRE_TEMPLATES=1 locally to turn the skip into a real failure.
+template_gated = pytest.mark.skipif(
+    not TEMPLATE.exists() and os.environ.get("REALTORAI_REQUIRE_TEMPLATES") != "1",
+    reason="MIS template not present (internal form)",
+)
 
 
 def test_field_mapping_from_fixture():
@@ -51,7 +60,8 @@ def test_blanks_are_dropped_never_guessed():
     assert values["f85_FloodZone"] == "X"
 
 
-@pytest.mark.skipif(not TEMPLATE.exists(), reason="MIS template not present (internal form)")
+@pytest.mark.template
+@template_gated
 def test_fill_round_trip(tmp_path):
     from pypdf import PdfReader
 
