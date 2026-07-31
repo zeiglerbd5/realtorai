@@ -1,9 +1,17 @@
 """Reference fixture: the 22 Penobscot St transaction record.
 
-Extracted from the real document set (deed, tax card, signed listing
-agreement, MREC brokerage relationship form, lead paint + property
-disclosures) for the Brett-as-seller listing in Orono. Used by the demo
-scripts, the UI demo button, and the workflow tests.
+Derived from a real document set (deed, tax card, signed listing agreement,
+MREC brokerage relationship form, lead paint + property disclosures) for a
+listing in Orono. Used by the demo scripts, the UI demo button, and the
+workflow tests.
+
+Party identities are fictional — seller, agents, and agency all follow the
+repo's anonymisation convention. The *property* facts are not: the address,
+Map/Block/Lot, deed book and page, and assessed value are genuine public
+record, which is what lets the live registry, VGSI tax card, Maine parcel,
+and FEMA flood integrations resolve against real government APIs in the demo.
+Swapping them for invented values would break the one part of this project
+that talks to production systems.
 """
 
 from datetime import date
@@ -93,13 +101,13 @@ def build_22_penobscot() -> TransactionRecord:
         deed_all_or_partial="All",
         deed_restrictions="Unknown",      # railway exception per deed — flag to title
         year_acquired=2022,
-        # ---- Seller (Brett himself) ----
+        # ---- Seller (fictional; see the module docstring) ----
         seller_1=Party(
-            name="Brett D. Zeigler",
-            email="zeiglerbd5@gmail.com",
-            cell_phone="207-478-7974",
+            name="Morgan T. Rowe",
+            email="morgan.rowe@example.com",
+            cell_phone="207-555-0142",
             # Listing agreement (current); tax card has a stale Old Town address
-            address1="15 Cromwell Drive",
+            address1="48 Forest Avenue",
             city="Orono",
             state="ME",
             postal_code="04473",

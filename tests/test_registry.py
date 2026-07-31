@@ -20,7 +20,7 @@ INDEX_HTML = (
     "<td>Grp: 1  Type:&#160;Deeds</td>\n"
     "<td>Town: ORONO</td>\n"
     '<a href="/ALIS/WW400R.HTM?WSIQTP=LR01L&W9SNM=LEPAGE">LEPAGE, GAIL M (Gtor)</a>\n'
-    '<a href="/ALIS/WW400R.HTM?WSIQTP=LR01L&W9SNM=ZEIGLER">ZEIGLER, BRETT D (Gtee)</a>\n'
+    '<a href="/ALIS/WW400R.HTM?WSIQTP=LR01L&W9SNM=ROWE">ROWE, MORGAN T (Gtee)</a>\n'
     '<a href="/ALIS/WW400R.HTM?WSIQTP=LR09I&W9RCCY=2022&W9RCMM=08&W9RCDD=29&W9CTLN=00429'
     '&WSKYCD=B&W9IMID=B22241AA.AH1" target="_blank" title="View Document Image">'
     '<img src="/HTML/PENOBSCT/Graphics2/icon_details.png"></a>\n'
@@ -44,7 +44,7 @@ def test_parse_index():
     assert index["doc_type"] == "Deeds"
     assert index["town"] == "ORONO"
     assert index["grantors"] == ["LEPAGE, GAIL M"]
-    assert index["grantees"] == ["ZEIGLER, BRETT D"]
+    assert index["grantees"] == ["ROWE, MORGAN T"]
     assert "LR09I" in index["view_href"]
 
 
@@ -58,9 +58,9 @@ def test_parse_viewer_picks_all_pages_pdf():
 
 
 def test_name_matches():
-    assert name_matches("ZEIGLER, BRETT D", "Brett D. Zeigler")
-    assert name_matches("ZEIGLER, BRETT D", "Brett Zeigler")
-    assert not name_matches("LEPAGE, GAIL M", "Brett D. Zeigler")
+    assert name_matches("ROWE, MORGAN T", "Morgan T. Rowe")
+    assert name_matches("ROWE, MORGAN T", "Morgan Rowe")
+    assert not name_matches("LEPAGE, GAIL M", "Morgan T. Rowe")
 
 
 def test_registry_router():
@@ -82,6 +82,6 @@ def test_render_deed_markdown_flags_mismatches():
     assert "owner not the grantee" in record.summary
     text = render_deed_markdown(record)
     assert "LEPAGE, GAIL M" in text
-    assert "ZEIGLER, BRETT D" in text
+    assert "ROWE, MORGAN T" in text
     assert "⚠️ MISMATCH" in text
     assert "NOT AN OFFICIAL COPY" in text

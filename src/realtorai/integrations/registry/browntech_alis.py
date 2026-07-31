@@ -127,7 +127,7 @@ def parse_viewer(html: str) -> str:
 
 
 def name_matches(deed_name: str, record_name: str) -> bool:
-    """'ZEIGLER, BRETT D' vs 'Brett D. Zeigler' — token-set comparison."""
+    """'ROWE, MORGAN T' vs 'Morgan T. Rowe' — token-set comparison."""
     def tokens(value: str) -> set[str]:
         return {t for t in re.findall(r"[A-Za-z]+", value.upper()) if len(t) > 1}
 

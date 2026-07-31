@@ -33,6 +33,16 @@ logger = structlog.get_logger()
 
 MAX_AGENT_ITERATIONS = 8
 
+# How much of an intake document the scoping agent may pull into the thread.
+# Sized against the forms this bundle actually carries: a Maine ERTS runs ~18.5k
+# characters, with compensation on page 2 and the term dates on page 3 — the old
+# 4k cut off 255 characters into page 2, so the agent answered about commission
+# and expiration from the page-1 disclosure boilerplate instead of the operative
+# terms. 16k reaches the end of page 4 and stops inside the wire-fraud advisory,
+# which carries nothing worth scoping. Extraction is unaffected either way; it
+# reads the full text via workflows.intake._documents_block.
+INTAKE_READ_LIMIT = 16_000
+
 _READ_TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "name": "list_active_transactions",
@@ -316,7 +326,17 @@ def _task_tool_impls(task: Task, state: dict[str, Any]) -> dict[str, Any]:
             names = [p.name for p in intake_dir.iterdir()]
             return f"No file '{name}' in the bundle. Available: {', '.join(names)}"
         text = paperwork_from_bytes(path.name, path.read_bytes()).text
-        return text[:4000] or "(no extractable text)"
+        if not text:
+            return "(no extractable text)"
+        if len(text) <= INTAKE_READ_LIMIT:
+            return text
+        # Say so explicitly — a silent cut lets the agent answer confidently
+        # from a partial document without knowing anything is missing.
+        return (
+            text[:INTAKE_READ_LIMIT]
+            + f"\n\n[truncated: showing the first {INTAKE_READ_LIMIT:,} of "
+            f"{len(text):,} characters]"
+        )
 
     def attach_local_file(path: str) -> str:
         source = Path(path).expanduser()

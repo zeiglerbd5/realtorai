@@ -64,6 +64,14 @@ Most of this comes from MLS, but the **gaps you flagged** are the recorded-deed 
 | `heat_type` | enum | MLS | Important for fuel oil/propane proration |
 | `lockbox_code` | string | Manual | Sensitive — store in keychain not RAG |
 | `showing_instructions` | text | Manual / MLS | |
+| `unit_count` | integer | MLS / Tax | **MLS-required on Multi-Family**; not derivable from `transaction_type` |
+| `personal_property_included` | text | P&S / SPD | Appliances/chattel conveying |
+| `system_updates` | text | SPD / Seller | Replacements + service history with dates |
+| `known_defects` | text | SPD | Seller-disclosed defects |
+| `basement_moisture` | text | SPD | Water intrusion — location and conditions |
+| `sump_pump` | bool | SPD | |
+| `lead_paint_status` | enum | LEAD / SPD | None Known / Known / Presumed (pre-1978) / Unknown |
+| `lead_paint_condition` | text | LEAD / SPD | Observed paint condition |
 
 ---
 

@@ -79,7 +79,7 @@ def test_deed_enrichment_fills_year_acquired_only():
     deed = DeedIndexRecord(
         county="Penobscot", book="16601", page="156",
         recorded_date="08-29-2022", doc_type="Deeds",
-        grantees=["ZEIGLER, BRETT D"],
+        grantees=["ROWE, MORGAN T"],
     )
     filled = enrich_from_deed(record, deed)
     assert record.year_acquired == 2022

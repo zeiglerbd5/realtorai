@@ -12,8 +12,8 @@
 **Phone:** {{buyer_phone}}
 **Email:** {{buyer_email}}
 
-**Broker/Agency:** Zeigler Realty
-**Agent:** Brett Zeigler
+**Broker/Agency:** The Agency REALTORS
+**Agent:** Morgan Rowe
 **License #:** {{agent_license}}
 **Address:** {{agency_address}}
 **Phone:** {{agency_phone}}
@@ -90,7 +90,7 @@ The following properties, if any, are excluded from this agreement because Buyer
 
 ## 5. DUAL AGENCY DISCLOSURE
 
-**NOTICE:** If a property that interests Buyer is listed by Zeigler Realty or an agent affiliated with Zeigler Realty, a **dual agency** situation may arise. In dual agency:
+**NOTICE:** If a property that interests Buyer is listed by The Agency REALTORS or an agent affiliated with The Agency REALTORS, a **dual agency** situation may arise. In dual agency:
 
 - Agent represents both Buyer and Seller
 - Agent must be neutral and cannot advocate for either party
@@ -152,7 +152,7 @@ Print Name: {{buyer_name_2}}
 
 Signature: _________________________________ Date: _______________
 
-Print Name: Brett Zeigler
+Print Name: Morgan Rowe
 License #: {{agent_license}}
 
 ---

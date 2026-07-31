@@ -106,7 +106,7 @@ async def run_listing_demo() -> RedirectResponse:
     from realtorai.fixtures import build_22_penobscot
     from realtorai.workflows.listing import start_listing_workflow
 
-    envelope = await start_listing_workflow(build_22_penobscot(), client_name="Brett Zeigler")
+    envelope = await start_listing_workflow(build_22_penobscot(), client_name="Morgan Rowe")
     return RedirectResponse(url=f"/transactions/{envelope.slug}", status_code=303)
 
 

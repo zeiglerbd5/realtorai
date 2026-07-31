@@ -16,7 +16,7 @@ FIXTURE_HTML = """
 <span id="MainContent_lblMblu">020/&nbsp; 003/ 082/ /</span>
 <span id="MainContent_lblAcctNum">865</span>
 <span id="MainContent_lblPid">2202</span>
-<span id="MainContent_lblGenOwner">ZEIGLER, BRETT D</span>
+<span id="MainContent_lblGenOwner">ROWE, MORGAN T</span>
 <span id="MainContent_lblAddr1">605 COLLEGE AVENUE OLD TOWN, ME 04468</span>
 <span id="MainContent_lblGenAssessment">$264,200</span>
 <span id="MainContent_lblLndAsmt">$40,300</span>
@@ -48,7 +48,7 @@ def test_parse_parcel_html():
     fields = parse_parcel_html(FIXTURE_HTML)
     assert fields["location"] == "22 PENOBSCOT STREET"
     assert fields["mblu"] == "020/003/082"  # whitespace + trailing slashes cleaned
-    assert fields["owner"] == "ZEIGLER, BRETT D"
+    assert fields["owner"] == "ROWE, MORGAN T"
     assert fields["assessment_total"] == Decimal("264200")
     assert fields["assessment_land"] == Decimal("40300")
     assert fields["last_sale_price"] == Decimal("202000")
@@ -103,7 +103,7 @@ def test_summary_and_markdown():
     )
     assert "MISMATCH vs record: year_built" in card.summary
     text = render_tax_card_markdown(card)
-    assert "ZEIGLER, BRETT D" in text
+    assert "ROWE, MORGAN T" in text
     assert "$264,200" in text
     assert "16601/156" in text
     assert "⚠️ reconcile" in text

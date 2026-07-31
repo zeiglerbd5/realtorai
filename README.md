@@ -35,7 +35,7 @@ missing" is always a current answer instead of an audit.
 git clone https://github.com/zeiglerbd5/realtorai.git && cd realtorai
 pip install -e ".[dev]"          # or: uv sync
 
-pytest                           # 110 tests, fully offline, ~2 seconds
+pytest                           # 156 tests, fully offline, ~4 seconds
 python scripts/demo_listing_workflow.py --fresh   # full intake on the reference listing
 realtorai-web                    # → http://127.0.0.1:8421
 ```
@@ -163,8 +163,29 @@ here are the two listings") classified as noise — the taxonomy was widened,
 and the fix is locked in by a runnable eval with fictionalized cases:
 
 ```bash
-python scripts/eval_intake_classifier.py    # 14/14, needs ANTHROPIC_API_KEY
+python -m realtorai.evals intake --backend heuristic   # offline, gated in CI
+python -m realtorai.evals intake --backend live        # needs ANTHROPIC_API_KEY
 ```
+
+Both backends run the same 20 cases. `heuristic` is the keyword classifier
+that takes over whenever the API is unavailable — it is production code, not
+a test double, so gating CI on it is a real regression test rather than a
+stand-in for one. It scores 0.85 accuracy / 0.86 macro-F1 with three cases
+recorded as expected misses: a marketing blast containing the literal words
+"new listing", a draft P&S circulated for review, and a title company
+scheduling a signing without using any closing keyword. Those three are where
+the live model earns its cost, and `evals compare` reports the delta.
+
+Accuracy is never quoted alone. The case set is imbalanced — 8 of 20 are
+`other` — so a classifier answering `other` to everything would score 0.40.
+Every report carries macro-F1, balanced accuracy, and that majority baseline
+next to accuracy.
+
+A third eval guards the schema itself: `evals schema-coverage` fails when a
+`TransactionRecord` field reaches no form and has no stated reason. It exists
+because eight disclosure facts (personal property, unit count, basement
+moisture, lead paint condition among them) were being extracted correctly and
+then stranded in a free-text `comments` blob no filler could read.
 
 ## Paperwork filling: capture once, verify once, fill everywhere
 
@@ -292,22 +313,49 @@ src/realtorai/
 ## Development
 
 ```bash
-pytest                  # offline suite (mock backends, no keys)
-ruff check .            # lint
+pip install -e ".[dev]" -c constraints.txt   # pinned toolchain
+pytest                                       # offline suite, no keys
+ruff check .                                 # lint
+mypy src/realtorai                           # strict, with a debt list
+python -m realtorai.evals schema-coverage    # every field reaches a form
 ```
 
-CI runs ruff and the suite on every push (`.github/workflows/ci.yml`) —
-on Linux, which works because the offline suite has no Apple-only
-dependencies. The lint gate is clean: zero findings, no suppressions
-beyond one documented convention.
+Every push and PR runs four jobs (`.github/workflows/ci.yml`): **lint**,
+**types**, **test** on Python 3.11 and 3.12, and **evals-offline**. All of it
+is hermetic — `--disable-socket --allow-unix-socket` means a test that reaches
+the network fails rather than quietly passing on whoever's laptop has
+credentials. The unix-socket exemption is required, not cosmetic: asyncio's
+event-loop self-pipe uses `socket.socketpair()`.
+
+Two workflows run on a weekly schedule and on demand rather than per-push:
+`evals-live.yml` (~20 Sonnet calls, needs the `ANTHROPIC_API_KEY` secret) and
+`evals-retrieval.yml` (rebuilds the vector store from the public legal corpus).
+Neither gates a PR — fork PRs cannot read secrets, and public-document URLs rot.
+
+`mypy` is strict and blocking. It passes because 55 modules sit on an explicit
+`ignore_errors` list in `pyproject.toml`; the other 50 are clean, and anything
+written from now on is strict by default. That list is the type-debt counter —
+fixing a module means deleting its line.
+
+The dev toolchain is pinned in `constraints.txt`. CI gates on ruff, strict
+mypy, and `filterwarnings = error::DeprecationWarning`, any of which would
+otherwise turn a dependency release into a red build on untouched code.
 
 ## Privacy
 
 All data lives on local disk (SQLite + JSON envelopes under `data/`, which
 is gitignored). OAuth tokens go to the macOS Keychain. With an API key
 configured, LLM calls go to the Anthropic API; nothing else leaves the
-machine. This public repository is fully anonymized — no client names,
-agent identities, or agency-internal forms.
+machine.
+
+This public repository carries no client names, agent identities, or
+agency-internal forms. Every party in the fixtures and eval cases is
+fictional. Property facts in the reference fixture — street address,
+Map/Block/Lot, deed book and page, assessed value — are deliberately real
+public record, because the registry, tax-card, parcel, and FEMA flood
+integrations resolve against live government APIs and would have nothing to
+resolve against otherwise. Those records are public by law and disclose
+nothing about a client.
 
 ## Status & roadmap
 

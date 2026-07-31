@@ -49,7 +49,7 @@ def render_buyer_agency_agreement(
     agent_license: str = "ME-XXXXXX",
     agency_address: str = "Portland, ME",
     agency_phone: str = "(207) 555-0100",
-    agency_email: str = "brett@zeiglerrealty.com",
+    agency_email: str = "agent.one@agency.example",
 ) -> str:
     """Render a buyer agency agreement for a client.
 

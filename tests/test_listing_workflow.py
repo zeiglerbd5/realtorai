@@ -14,7 +14,7 @@ PAPERWORK = [
 
 async def test_listing_workflow_offline(offline_env):
     envelope = await start_listing_workflow(
-        build_22_penobscot(), paperwork_files=PAPERWORK, client_name="Brett Zeigler"
+        build_22_penobscot(), paperwork_files=PAPERWORK, client_name="Morgan Rowe"
     )
 
     state = envelope.workflow
