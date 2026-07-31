@@ -59,7 +59,7 @@ def test_parse_viewer_picks_all_pages_pdf():
 
 def test_name_matches():
     assert name_matches("ROWE, MORGAN T", "Morgan T. Rowe")
-    assert name_matches("ROWE, MORGAN T", "Brett Zeigler")
+    assert name_matches("ROWE, MORGAN T", "Morgan Rowe")
     assert not name_matches("LEPAGE, GAIL M", "Morgan T. Rowe")
 
 

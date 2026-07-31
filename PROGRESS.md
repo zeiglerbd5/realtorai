@@ -6,7 +6,7 @@
 transaction coordinator for a Maine listing team, and the project is built
 against that team's real workflow: its checklists drive the mock Rooms task
 lists, its forwarded inbox validated the intake classifier (see
-`scripts/eval_intake_classifier.py`), and its day-to-day TC workload defines
+`src/realtorai/evals/cases/intake.py`), and its day-to-day TC workload defines
 the feature set. Live DocuSign Rooms / MLS cutover remains blocked on
 broker- and MLS-side API approval — the integrations run on simulators
 built to the live API shapes, so the cutover is two env vars.
@@ -140,8 +140,11 @@ python scripts/demo_listing_workflow.py --fresh
 python scripts/demo_lifecycle.py
 
 # Evals
-python scripts/eval_intake_classifier.py   # needs ANTHROPIC_API_KEY
-python scripts/eval_retrieval.py           # fully local
+python -m realtorai.evals schema-coverage            # offline, gated in CI
+python -m realtorai.evals intake --backend heuristic # offline, gated in CI
+python -m realtorai.evals intake --backend live      # needs ANTHROPIC_API_KEY
+python -m realtorai.evals retrieval                  # local, needs an ingested corpus
+python -m realtorai.evals compare a.json b.json      # diff two runs
 
 # Ingest documents
 realtorai ingest /path/to/document.pdf

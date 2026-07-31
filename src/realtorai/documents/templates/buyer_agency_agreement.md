@@ -13,7 +13,7 @@
 **Email:** {{buyer_email}}
 
 **Broker/Agency:** The Agency REALTORS
-**Agent:** Agent One
+**Agent:** Morgan Rowe
 **License #:** {{agent_license}}
 **Address:** {{agency_address}}
 **Phone:** {{agency_phone}}
@@ -152,7 +152,7 @@ Print Name: {{buyer_name_2}}
 
 Signature: _________________________________ Date: _______________
 
-Print Name: Agent One
+Print Name: Morgan Rowe
 License #: {{agent_license}}
 
 ---
