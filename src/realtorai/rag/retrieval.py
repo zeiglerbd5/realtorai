@@ -1,5 +1,7 @@
 """RAG retrieval for augmenting prompts with relevant context."""
 
+from typing import Any
+
 import structlog
 
 from realtorai.rag.config import get_top_k
@@ -21,23 +23,30 @@ KNOWLEDGE_KINDS: dict[str, list[str]] = {
 }
 
 
-def search_knowledge(query: str, kind: str | None = None, n_results: int = 4) -> str:
-    """Tool-facing knowledge-base search with source-kind filtering.
+def retrieve_knowledge(
+    query: str, kind: str | None = None, n_results: int = 4
+) -> list[dict[str, Any]]:
+    """Knowledge-base search returning structured hits, best match first.
 
-    Returns a formatted string with [source section] citations per hit —
-    the section-aware chunks carry their statute/rule headers, so answers
-    can cite "§13271" instead of hallucinating a reference.
+    Split out from `search_knowledge` so callers that need to know *which
+    source* matched can read `hit["metadata"]["source"]`. Asking that question
+    of the rendered string instead means substring-matching a source name
+    against chunk body text, which scores a hit whenever the prose happens to
+    mention the filename — the bug the retrieval eval used to have.
     """
     store = get_vector_store()
-    where = None
     sources = KNOWLEDGE_KINDS.get(kind or "")
-    if sources:
-        where = {"source": {"$in": sources}}
-    results = store.query(query, n_results=n_results, where=where)
-    if not results:
+    where = {"source": {"$in": sources}} if sources else None
+    hits: list[dict[str, Any]] = store.query(query, n_results=n_results, where=where)
+    return hits
+
+
+def format_hits(hits: list[dict[str, Any]]) -> str:
+    """Render hits as `[source — section]` citation blocks for a prompt."""
+    if not hits:
         return "No knowledge-base matches."
     lines = []
-    for r in results:
+    for r in hits:
         meta = r.get("metadata", {})
         cite = meta.get("source", "?")
         if meta.get("section"):
@@ -45,6 +54,16 @@ def search_knowledge(query: str, kind: str | None = None, n_results: int = 4) ->
         text = " ".join((r.get("text") or "").split())
         lines.append(f"[{cite}] {text[:600]}")
     return "\n---\n".join(lines)
+
+
+def search_knowledge(query: str, kind: str | None = None, n_results: int = 4) -> str:
+    """Tool-facing knowledge-base search with source-kind filtering.
+
+    Returns a formatted string with [source section] citations per hit —
+    the section-aware chunks carry their statute/rule headers, so answers
+    can cite "§13271" instead of hallucinating a reference.
+    """
+    return format_hits(retrieve_knowledge(query, kind, n_results))
 
 
 class RAGRetriever:
